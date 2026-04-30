@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "CREW",
-    "slug": "crew-cwm",
+    "slug": "crew-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,7 +12,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#0A1628"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -26,7 +28,9 @@
         "ACCESS_BACKGROUND_LOCATION",
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "ios": {
@@ -45,9 +49,13 @@
     ],
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "d3f678eb-209e-4e41-8416-6ecfa8840deb"
       },
-      "apiBaseUrl": "https://crew-cwm.com"
-    }
+      "apiBaseUrl": "https://crew-cwm.com",
+      "router": {
+        "origin": false
+      }
+    },
+    "owner": "crew-cwm"
   }
 }
