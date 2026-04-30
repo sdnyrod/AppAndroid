@@ -38,7 +38,6 @@
       "bundleIdentifier": "com.crewcwm.app"
     },
     "plugins": [
-      "expo-router",
       "expo-secure-store",
       [
         "expo-location",
@@ -53,10 +52,7 @@
       "eas": {
         "projectId": "d3f678eb-209e-4e41-8416-6ecfa8840deb"
       },
-      "apiBaseUrl": "https://crew-cwm.com",
-      "router": {
-        "origin": false
-      }
+      "apiBaseUrl": "https://crew-cwm.com"
     },
     "owner": "crew-cwm"
   }
