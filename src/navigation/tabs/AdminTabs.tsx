@@ -1,7 +1,9 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Text } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import DashboardScreen from "@/screens/admin/DashboardScreen";
 import PlaceholderScreen from "@/screens/shared/PlaceholderScreen";
+import ProfileScreen from "@/screens/shared/ProfileScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -18,33 +20,61 @@ export default function AdminTabs() {
     >
       <Tab.Screen
         name="Dashboard"
-        component={PlaceholderScreen}
-        initialParams={{ title: "Dashboard", role: "admin" }}
-        options={{ tabBarLabel: "Home" }}
+        component={DashboardScreen}
+        options={{
+          tabBarLabel: "Dashboard",
+          headerTitle: "Dashboard",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="grid" size={size} color={color} />
+          ),
+        }}
       />
       <Tab.Screen
-        name="Workers"
+        name="Projects"
         component={PlaceholderScreen}
-        initialParams={{ title: "Workers", role: "admin" }}
-        options={{ tabBarLabel: "Team" }}
+        initialParams={{ title: "Projects", role: "admin" }}
+        options={{
+          tabBarLabel: "Projects",
+          headerTitle: "Projects",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="construct" size={size} color={color} />
+          ),
+        }}
       />
       <Tab.Screen
-        name="TimeTracking"
+        name="Employees"
         component={PlaceholderScreen}
-        initialParams={{ title: "Time Tracking", role: "admin" }}
-        options={{ tabBarLabel: "Time" }}
+        initialParams={{ title: "Employees", role: "admin" }}
+        options={{
+          tabBarLabel: "Team",
+          headerTitle: "Employees",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people" size={size} color={color} />
+          ),
+        }}
       />
       <Tab.Screen
-        name="Jobs"
+        name="Reports"
         component={PlaceholderScreen}
-        initialParams={{ title: "Jobs & Estimates", role: "admin" }}
-        options={{ tabBarLabel: "Jobs" }}
+        initialParams={{ title: "Reports", role: "admin" }}
+        options={{
+          tabBarLabel: "Reports",
+          headerTitle: "Reports",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="bar-chart" size={size} color={color} />
+          ),
+        }}
       />
       <Tab.Screen
-        name="More"
-        component={PlaceholderScreen}
-        initialParams={{ title: "More", role: "admin" }}
-        options={{ tabBarLabel: "More" }}
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: "Profile",
+          headerTitle: "My Profile",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person" size={size} color={color} />
+          ),
+        }}
       />
     </Tab.Navigator>
   );

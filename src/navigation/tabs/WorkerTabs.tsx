@@ -1,6 +1,9 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import PlaceholderScreen from "@/screens/shared/PlaceholderScreen";
+import { Ionicons } from "@expo/vector-icons";
+import ClockScreen from "@/screens/worker/ClockScreen";
+import TimeHistoryScreen from "@/screens/worker/TimeHistoryScreen";
+import ProfileScreen from "@/screens/shared/ProfileScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -17,27 +20,36 @@ export default function WorkerTabs() {
     >
       <Tab.Screen
         name="ClockIn"
-        component={PlaceholderScreen}
-        initialParams={{ title: "Clock In/Out", role: "worker" }}
-        options={{ tabBarLabel: "Clock" }}
-      />
-      <Tab.Screen
-        name="Schedule"
-        component={PlaceholderScreen}
-        initialParams={{ title: "My Schedule", role: "worker" }}
-        options={{ tabBarLabel: "Schedule" }}
+        component={ClockScreen}
+        options={{
+          tabBarLabel: "Clock",
+          headerTitle: "Clock In/Out",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="time" size={size} color={color} />
+          ),
+        }}
       />
       <Tab.Screen
         name="Timesheet"
-        component={PlaceholderScreen}
-        initialParams={{ title: "Timesheet", role: "worker" }}
-        options={{ tabBarLabel: "Hours" }}
+        component={TimeHistoryScreen}
+        options={{
+          tabBarLabel: "Hours",
+          headerTitle: "Time History",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="list" size={size} color={color} />
+          ),
+        }}
       />
       <Tab.Screen
         name="Profile"
-        component={PlaceholderScreen}
-        initialParams={{ title: "Profile", role: "worker" }}
-        options={{ tabBarLabel: "Profile" }}
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: "Profile",
+          headerTitle: "My Profile",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person" size={size} color={color} />
+          ),
+        }}
       />
     </Tab.Navigator>
   );

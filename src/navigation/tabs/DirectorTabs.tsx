@@ -1,6 +1,9 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
+import CommissionsScreen from "@/screens/sales/CommissionsScreen";
 import PlaceholderScreen from "@/screens/shared/PlaceholderScreen";
+import ProfileScreen from "@/screens/shared/ProfileScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -19,31 +22,47 @@ export default function DirectorTabs() {
         name="Dashboard"
         component={PlaceholderScreen}
         initialParams={{ title: "Director Portal", role: "director" }}
-        options={{ tabBarLabel: "Home" }}
+        options={{
+          tabBarLabel: "Home",
+          headerTitle: "Director Portal",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="grid" size={size} color={color} />
+          ),
+        }}
       />
       <Tab.Screen
         name="Team"
         component={PlaceholderScreen}
         initialParams={{ title: "Sales Team", role: "director" }}
-        options={{ tabBarLabel: "Team" }}
-      />
-      <Tab.Screen
-        name="Revenue"
-        component={PlaceholderScreen}
-        initialParams={{ title: "Revenue", role: "director" }}
-        options={{ tabBarLabel: "Revenue" }}
+        options={{
+          tabBarLabel: "Team",
+          headerTitle: "Sales Team",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people" size={size} color={color} />
+          ),
+        }}
       />
       <Tab.Screen
         name="Commissions"
-        component={PlaceholderScreen}
-        initialParams={{ title: "Commissions", role: "director" }}
-        options={{ tabBarLabel: "Earnings" }}
+        component={CommissionsScreen}
+        options={{
+          tabBarLabel: "Earnings",
+          headerTitle: "Commissions",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="cash" size={size} color={color} />
+          ),
+        }}
       />
       <Tab.Screen
         name="Profile"
-        component={PlaceholderScreen}
-        initialParams={{ title: "Profile", role: "director" }}
-        options={{ tabBarLabel: "Profile" }}
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: "Profile",
+          headerTitle: "My Profile",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person" size={size} color={color} />
+          ),
+        }}
       />
     </Tab.Navigator>
   );

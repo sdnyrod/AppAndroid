@@ -18,6 +18,9 @@ export interface User {
   phone: string | null;
   language: string;
   createdAt: string;
+  // Tenant subscription info (for trial expiration check)
+  tenantStatus?: "trial" | "active" | "trial_expired" | "suspended" | "cancelled";
+  trialEndsAt?: string | null;
 }
 
 export interface AuthState {

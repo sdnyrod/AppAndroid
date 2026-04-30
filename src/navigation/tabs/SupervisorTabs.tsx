@@ -1,6 +1,10 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import PlaceholderScreen from "@/screens/shared/PlaceholderScreen";
+import { Ionicons } from "@expo/vector-icons";
+import DashboardScreen from "@/screens/admin/DashboardScreen";
+import TeamScreen from "@/screens/supervisor/TeamScreen";
+import ClockScreen from "@/screens/worker/ClockScreen";
+import ProfileScreen from "@/screens/shared/ProfileScreen";
 
 const Tab = createBottomTabNavigator();
 
@@ -17,33 +21,47 @@ export default function SupervisorTabs() {
     >
       <Tab.Screen
         name="Dashboard"
-        component={PlaceholderScreen}
-        initialParams={{ title: "Team Overview", role: "supervisor" }}
-        options={{ tabBarLabel: "Team" }}
+        component={DashboardScreen}
+        options={{
+          tabBarLabel: "Dashboard",
+          headerTitle: "Dashboard",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="grid" size={size} color={color} />
+          ),
+        }}
       />
       <Tab.Screen
-        name="Attendance"
-        component={PlaceholderScreen}
-        initialParams={{ title: "Attendance", role: "supervisor" }}
-        options={{ tabBarLabel: "Attendance" }}
+        name="Team"
+        component={TeamScreen}
+        options={{
+          tabBarLabel: "Team",
+          headerTitle: "My Team",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people" size={size} color={color} />
+          ),
+        }}
       />
       <Tab.Screen
-        name="Dispatch"
-        component={PlaceholderScreen}
-        initialParams={{ title: "Dispatch", role: "supervisor" }}
-        options={{ tabBarLabel: "Dispatch" }}
+        name="Clock"
+        component={ClockScreen}
+        options={{
+          tabBarLabel: "Clock",
+          headerTitle: "Clock In/Out",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="time" size={size} color={color} />
+          ),
+        }}
       />
       <Tab.Screen
-        name="Reports"
-        component={PlaceholderScreen}
-        initialParams={{ title: "Reports", role: "supervisor" }}
-        options={{ tabBarLabel: "Reports" }}
-      />
-      <Tab.Screen
-        name="More"
-        component={PlaceholderScreen}
-        initialParams={{ title: "More", role: "supervisor" }}
-        options={{ tabBarLabel: "More" }}
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: "Profile",
+          headerTitle: "My Profile",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person" size={size} color={color} />
+          ),
+        }}
       />
     </Tab.Navigator>
   );
