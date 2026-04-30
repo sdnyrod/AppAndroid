@@ -45,7 +45,9 @@
         {
           "locationAlwaysAndWhenInUsePermission": "CREW needs your location to track work hours and job site attendance."
         }
-      ]
+      ],
+      "expo-asset",
+      "expo-font"
     ],
     "extra": {
       "eas": {
