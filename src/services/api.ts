@@ -21,9 +21,9 @@ export async function removeToken(): Promise<void> {
   await SecureStore.deleteItemAsync(TOKEN_KEY);
 }
 
-// --- API Client ---
+// --- Core API Request ---
 
-interface ApiResponse<T = unknown> {
+interface ApiResponse<T = any> {
   ok: boolean;
   data?: T;
   error?: string;
@@ -49,6 +49,7 @@ async function apiRequest<T>(
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
+      credentials: "include",
     });
 
     // Extract set-cookie header for token persistence
@@ -65,7 +66,13 @@ async function apiRequest<T>(
       return { ok: false, error: "Unauthorized", status: 401 };
     }
 
-    const data = await response.json();
+    const text = await response.text();
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
 
     if (!response.ok) {
       return {
@@ -86,9 +93,12 @@ async function apiRequest<T>(
 }
 
 // --- tRPC Client ---
-// The web backend uses tRPC with superjson serialization
 
-export async function trpcQuery<T>(
+/**
+ * Call a tRPC query (GET request)
+ * Returns the unwrapped result data from the tRPC response envelope
+ */
+export async function trpcQuery<T = any>(
   procedure: string,
   input?: unknown
 ): Promise<ApiResponse<T>> {
@@ -96,45 +106,72 @@ export async function trpcQuery<T>(
     ? `?input=${encodeURIComponent(JSON.stringify({ json: input }))}`
     : "";
 
-  return apiRequest<T>(`/api/trpc/${procedure}${params}`, {
+  const response = await apiRequest<any>(`/api/trpc/${procedure}${params}`, {
     method: "GET",
   });
+
+  // Unwrap tRPC response envelope: { result: { data: { json: ... } } }
+  if (response.ok && response.data?.result?.data?.json !== undefined) {
+    return { ...response, data: response.data.result.data.json };
+  }
+  return response as ApiResponse<T>;
 }
 
-export async function trpcMutation<T>(
+/**
+ * Call a tRPC mutation (POST request)
+ * Returns the unwrapped result data from the tRPC response envelope
+ */
+export async function trpcMutation<T = any>(
   procedure: string,
   input?: unknown
 ): Promise<ApiResponse<T>> {
-  return apiRequest<T>(`/api/trpc/${procedure}`, {
+  const response = await apiRequest<any>(`/api/trpc/${procedure}`, {
     method: "POST",
     body: JSON.stringify(input !== undefined ? { json: input } : {}),
   });
+
+  // Unwrap tRPC response envelope
+  if (response.ok && response.data?.result?.data?.json !== undefined) {
+    return { ...response, data: response.data.result.data.json };
+  }
+  return response as ApiResponse<T>;
 }
+
+// --- Convenience API Client (used by screens) ---
+
+/**
+ * apiClient provides a simple interface for screens to call tRPC procedures.
+ * Matches the pattern used throughout the app screens.
+ */
+export const apiClient = {
+  query: trpcQuery,
+  mutation: trpcMutation,
+
+  // Shorthand for common patterns
+  async get<T = any>(procedure: string, input?: unknown): Promise<T | null> {
+    const res = await trpcQuery<T>(procedure, input);
+    return res.ok ? (res.data ?? null) : null;
+  },
+
+  async post<T = any>(procedure: string, input?: unknown): Promise<{ ok: boolean; data?: T; error?: string }> {
+    const res = await trpcMutation<T>(procedure, input);
+    return { ok: res.ok, data: res.data, error: res.error };
+  },
+};
 
 // --- Auth Endpoints ---
 
-/**
- * Login for tenant users (workers, admins, supervisors, salespeople, directors)
- * Uses the localLogin procedure from the web backend
- */
 export async function login(email: string, password: string, tenantId?: number) {
-  // Try tenant login first (most common case)
   const response = await trpcMutation<{
-    result: {
-      data: {
-        json: {
-          success: boolean;
-          mustChangePassword: boolean;
-          isSalesperson: boolean;
-          salespersonRank: string | null;
-          user: {
-            id: number;
-            name: string;
-            email: string;
-            role: string;
-          };
-        };
-      };
+    success: boolean;
+    mustChangePassword: boolean;
+    isSalesperson: boolean;
+    salespersonRank: string | null;
+    user: {
+      id: number;
+      name: string;
+      email: string;
+      role: string;
     };
   }>("auth.localLogin", {
     email,
@@ -146,16 +183,10 @@ export async function login(email: string, password: string, tenantId?: number) 
   return response;
 }
 
-/**
- * Get current authenticated user info
- */
 export async function getMe() {
   return trpcQuery("auth.me");
 }
 
-/**
- * Logout - clears session
- */
 export async function logout() {
   const result = await trpcMutation("auth.logout");
   await removeToken();

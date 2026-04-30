@@ -9,29 +9,20 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
-  Alert,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/store/authStore";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuthStore();
+  const [showPassword, setShowPassword] = useState(false);
+  const { login, isLoading, error, clearError } = useAuthStore();
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert("Error", "Please enter email and password");
-      return;
-    }
-
-    setIsLoading(true);
-    const result = await login({ email: email.trim(), password });
-    setIsLoading(false);
-
-    if (!result.success) {
-      Alert.alert("Login Failed", result.error || "Invalid credentials");
-    }
+    if (!email.trim() || !password.trim()) return;
+    clearError();
+    await login(email.trim(), password);
   };
 
   return (
@@ -53,25 +44,45 @@ export default function LoginScreen() {
 
         {/* Form */}
         <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#8892A4"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
+          {error && (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle" size={16} color="#EF4444" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
 
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#8892A4"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          <View style={styles.inputWrapper}>
+            <Ionicons name="mail-outline" size={18} color="#5A6A80" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email"
+              placeholderTextColor="#5A6A80"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          <View style={styles.inputWrapper}>
+            <Ionicons name="lock-closed-outline" size={18} color="#5A6A80" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password"
+              placeholderTextColor="#5A6A80"
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={18}
+                color="#5A6A80"
+              />
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity
             style={[styles.button, isLoading && styles.buttonDisabled]}
@@ -79,20 +90,12 @@ export default function LoginScreen() {
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.buttonText}>Sign In</Text>
             )}
           </TouchableOpacity>
         </View>
-
-        {/* Register Link */}
-        <TouchableOpacity style={styles.registerLink}>
-          <Text style={styles.registerText}>
-            Don't have an account?{" "}
-            <Text style={styles.registerTextBold}>Start Free Trial</Text>
-          </Text>
-        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -131,15 +134,38 @@ const styles = StyleSheet.create({
   form: {
     gap: 16,
   },
-  input: {
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1C1017",
+    borderWidth: 1,
+    borderColor: "#7F1D1D",
+    borderRadius: 8,
+    padding: 12,
+    gap: 8,
+  },
+  errorText: {
+    color: "#EF4444",
+    fontSize: 13,
+    flex: 1,
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#1A2A40",
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: "#FFFFFF",
+    paddingHorizontal: 14,
+    height: 50,
     borderWidth: 1,
     borderColor: "#2A3A50",
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    color: "#FFFFFF",
+    fontSize: 16,
   },
   button: {
     backgroundColor: "#3B82F6",
@@ -154,18 +180,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "600",
-  },
-  registerLink: {
-    alignItems: "center",
-    marginTop: 24,
-  },
-  registerText: {
-    color: "#8892A4",
-    fontSize: 14,
-  },
-  registerTextBold: {
-    color: "#3B82F6",
     fontWeight: "600",
   },
 });

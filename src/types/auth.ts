@@ -1,14 +1,9 @@
-// User roles matching the web system
-export type UserRole =
-  | "super_owner"   // Sidney - platform owner
-  | "admin"         // Tenant admin
-  | "supervisor"    // Field supervisor
-  | "worker"        // Field worker
-  | "salesperson"   // Sales team member
-  | "director";     // Commercial director
+// User roles matching the database enum: ["employee", "supervisor", "owner", "admin"]
+export type UserRole = "employee" | "supervisor" | "owner" | "admin";
 
 export interface User {
   id: number;
+  openId: string;
   email: string;
   name: string;
   role: UserRole;
@@ -18,9 +13,14 @@ export interface User {
   phone: string | null;
   language: string;
   createdAt: string;
-  // Tenant subscription info (for trial expiration check)
+  // Tenant subscription info
   tenantStatus?: "trial" | "active" | "trial_expired" | "suspended" | "cancelled";
   trialEndsAt?: string | null;
+  // Platform-level flags
+  isSuperOwner?: boolean;
+  isSalesperson?: boolean;
+  salespersonRank?: string | null;
+  superAdminRole?: string | null;
 }
 
 export interface AuthState {
@@ -35,19 +35,10 @@ export interface LoginCredentials {
   password: string;
 }
 
-export interface RegisterTenantData {
-  companyName: string;
-  ownerName: string;
-  email: string;
-  password: string;
-  phone: string;
-  plan: "starter" | "professional" | "business" | "enterprise";
-  language: string;
-}
-
-export interface TenantStatus {
-  status: "trial" | "active" | "suspended" | "cancelled";
-  trialEndsAt: string | null;
-  plan: string;
-  daysRemaining: number | null;
+// Permission system
+export interface PermissionsState {
+  permissions: Set<string>;
+  role: string;
+  isOwner: boolean;
+  loading: boolean;
 }

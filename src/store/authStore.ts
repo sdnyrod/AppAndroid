@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { User, AuthState, LoginCredentials } from "@/types/auth";
+import { User } from "@/types/auth";
 import {
   login as apiLogin,
   getMe,
@@ -12,67 +12,71 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const USER_CACHE_KEY = "crew_user_cache";
 
-interface AuthStore extends AuthState {
-  mustChangePassword: boolean;
-  login: (credentials: LoginCredentials) => Promise<{ success: boolean; error?: string }>;
+interface AuthStore {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
-  setUser: (user: User | null) => void;
+  clearError: () => void;
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
   user: null,
-  token: null,
   isAuthenticated: false,
   isLoading: true,
-  mustChangePassword: false,
+  error: null,
 
-  login: async (credentials) => {
+  login: async (email: string, password: string) => {
+    set({ isLoading: true, error: null });
     try {
-      const response = await apiLogin(credentials.email, credentials.password);
+      const response = await apiLogin(email, password);
 
       if (!response.ok || !response.data) {
-        return { success: false, error: response.error || "Invalid credentials" };
+        set({ isLoading: false, error: response.error || "Invalid credentials" });
+        return false;
       }
 
-      // Extract from tRPC response format
-      const result = (response.data as any)?.result?.data?.json;
-      if (!result?.success) {
-        return { success: false, error: "Login failed" };
+      const result = response.data;
+      if (!result.success) {
+        set({ isLoading: false, error: "Login failed" });
+        return false;
       }
 
-      // Build user object from response
-      const user: User = {
-        id: result.user.id,
-        email: result.user.email,
-        name: result.user.name,
-        role: result.user.role as User["role"],
-        tenantId: null, // Will be populated from getMe
-        tenantName: null,
-        avatarUrl: null,
-        phone: null,
-        language: "en",
-        createdAt: new Date().toISOString(),
-      };
+      // After successful login, fetch full user profile
+      const meResponse = await getMe();
+      if (meResponse.ok && meResponse.data) {
+        const userData = meResponse.data as any;
+        const user: User = {
+          id: userData.id,
+          openId: userData.openId || "",
+          email: userData.email || "",
+          name: userData.name || "",
+          role: userData.role || "employee",
+          tenantId: userData.tenantId || null,
+          tenantName: userData.tenantName || null,
+          avatarUrl: userData.avatarUrl || null,
+          phone: userData.phone || null,
+          language: userData.language || "en",
+          createdAt: userData.createdAt || new Date().toISOString(),
+          isSuperOwner: userData.isSuperOwner || false,
+          isSalesperson: userData.isSalesperson || false,
+          salespersonRank: userData.salespersonRank || null,
+          superAdminRole: userData.superAdminRole || null,
+        };
+        await AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+        set({ user, isAuthenticated: true, isLoading: false, error: null });
+        return true;
+      }
 
-      await AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
-
-      set({
-        user,
-        isAuthenticated: true,
-        isLoading: false,
-        mustChangePassword: result.mustChangePassword || false,
-      });
-
-      // Fetch full user profile in background
-      get().checkAuth();
-
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Login failed",
-      };
+      set({ isLoading: false, error: "Failed to fetch profile" });
+      return false;
+    } catch (e: any) {
+      set({ isLoading: false, error: e?.message || "Login failed" });
+      return false;
     }
   },
 
@@ -84,22 +88,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
     await removeToken();
     await AsyncStorage.removeItem(USER_CACHE_KEY);
-    set({
-      user: null,
-      token: null,
-      isAuthenticated: false,
-      isLoading: false,
-      mustChangePassword: false,
-    });
+    set({ user: null, isAuthenticated: false, isLoading: false, error: null });
   },
 
   checkAuth: async () => {
     set({ isLoading: true });
 
-    // Check if we have a stored token
     const token = await getStoredToken();
     if (!token) {
-      set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+      set({ user: null, isAuthenticated: false, isLoading: false });
       return;
     }
 
@@ -108,7 +105,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const cachedUser = await AsyncStorage.getItem(USER_CACHE_KEY);
       if (cachedUser) {
         const user = JSON.parse(cachedUser) as User;
-        set({ user, token, isAuthenticated: true, isLoading: false });
+        set({ user, isAuthenticated: true, isLoading: false });
       }
     } catch {}
 
@@ -116,28 +113,30 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       const response = await getMe();
       if (response.ok && response.data) {
-        const userData = (response.data as any)?.result?.data?.json;
-        if (userData) {
-          const user: User = {
-            id: userData.id,
-            email: userData.email || "",
-            name: userData.name || "",
-            role: userData.role || "worker",
-            tenantId: userData.tenantId || null,
-            tenantName: userData.tenantName || null,
-            avatarUrl: userData.avatarUrl || null,
-            phone: userData.phone || null,
-            language: userData.language || "en",
-            createdAt: userData.createdAt || new Date().toISOString(),
-          };
-          await AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
-          set({ user, token, isAuthenticated: true, isLoading: false });
-        }
+        const userData = response.data as any;
+        const user: User = {
+          id: userData.id,
+          openId: userData.openId || "",
+          email: userData.email || "",
+          name: userData.name || "",
+          role: userData.role || "employee",
+          tenantId: userData.tenantId || null,
+          tenantName: userData.tenantName || null,
+          avatarUrl: userData.avatarUrl || null,
+          phone: userData.phone || null,
+          language: userData.language || "en",
+          createdAt: userData.createdAt || new Date().toISOString(),
+          isSuperOwner: userData.isSuperOwner || false,
+          isSalesperson: userData.isSalesperson || false,
+          salespersonRank: userData.salespersonRank || null,
+          superAdminRole: userData.superAdminRole || null,
+        };
+        await AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+        set({ user, isAuthenticated: true, isLoading: false });
       } else if (response.status === 401) {
-        // Token expired
         await removeToken();
         await AsyncStorage.removeItem(USER_CACHE_KEY);
-        set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+        set({ user: null, isAuthenticated: false, isLoading: false });
       }
     } catch {
       // Network error — keep cached user (offline mode)
@@ -147,7 +146,5 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
 
-  setUser: (user) => {
-    set({ user, isAuthenticated: !!user });
-  },
+  clearError: () => set({ error: null }),
 }));

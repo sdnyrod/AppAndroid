@@ -2,77 +2,53 @@ import React, { useEffect } from "react";
 import { ActivityIndicator, View, StyleSheet } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createDrawerNavigator } from "@react-navigation/drawer";
 import { useAuthStore } from "@/store/authStore";
-import { UserRole } from "@/types/auth";
+import { usePermissionsStore } from "@/store/permissionsStore";
 
 // Auth Screens
 import LoginScreen from "@/screens/auth/LoginScreen";
-import RegisterScreen from "@/screens/auth/RegisterScreen";
-import TrialExpiredScreen from "@/screens/shared/TrialExpiredScreen";
 
-// Role-based Tab Navigators
-import AdminTabs from "./tabs/AdminTabs";
-import SupervisorTabs from "./tabs/SupervisorTabs";
-import WorkerTabs from "./tabs/WorkerTabs";
-import SalespersonTabs from "./tabs/SalespersonTabs";
-import DirectorTabs from "./tabs/DirectorTabs";
-import OwnerTabs from "./tabs/OwnerTabs";
+// Main App with Drawer
+import DrawerContent from "./DrawerContent";
+import MainScreens from "./MainScreens";
 
 const Stack = createNativeStackNavigator();
+const Drawer = createDrawerNavigator();
 
-function getRoleNavigator(role: UserRole) {
-  switch (role) {
-    case "super_owner":
-      return OwnerTabs;
-    case "admin":
-      return AdminTabs;
-    case "supervisor":
-      return SupervisorTabs;
-    case "worker":
-      return WorkerTabs;
-    case "salesperson":
-      return SalespersonTabs;
-    case "director":
-      return DirectorTabs;
-    default:
-      return WorkerTabs;
-  }
-}
-
-/**
- * Check if tenant trial has expired.
- * Trial is expired when:
- * - tenant.status === "trial_expired" OR
- * - tenant.status === "suspended" OR
- * - tenant.trialEndsAt is in the past AND tenant.status === "trial"
- *
- * Salesperson and Director roles are NOT affected by trial expiration
- * (they are part of the sales network, not tenant operations)
- */
-function isTrialExpired(user: { role: UserRole; tenantStatus?: string; trialEndsAt?: string }): boolean {
-  // Sales network roles are never blocked by trial
-  if (user.role === "salesperson" || user.role === "director" || user.role === "super_owner") {
-    return false;
-  }
-
-  if (user.tenantStatus === "trial_expired" || user.tenantStatus === "suspended") {
-    return true;
-  }
-
-  if (user.tenantStatus === "trial" && user.trialEndsAt) {
-    const trialEnd = new Date(user.trialEndsAt);
-    return trialEnd < new Date();
-  }
-
-  return false;
+function AppDrawer() {
+  return (
+    <Drawer.Navigator
+      drawerContent={(props) => <DrawerContent {...props} />}
+      screenOptions={{
+        headerShown: false,
+        drawerStyle: {
+          backgroundColor: "#0A1628",
+          width: 300,
+        },
+      }}
+    >
+      <Drawer.Screen name="MainScreens" component={MainScreens} />
+    </Drawer.Navigator>
+  );
 }
 
 export default function AppNavigator() {
   const { isAuthenticated, isLoading, user, checkAuth } = useAuthStore();
+  const { fetchPermissions, reset: resetPermissions, loaded: permissionsLoaded } = usePermissionsStore();
 
   useEffect(() => {
     checkAuth();
   }, []);
+
+  // Fetch permissions when authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      fetchPermissions();
+    } else {
+      resetPermissions();
+    }
+  }, [isAuthenticated, user]);
 
   if (isLoading) {
     return (
@@ -82,25 +58,13 @@ export default function AppNavigator() {
     );
   }
 
-  const RoleNavigator = user ? getRoleNavigator(user.role) : null;
-  const trialExpired = user ? isTrialExpired(user) : false;
-
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
-          <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
-          </>
-        ) : trialExpired ? (
-          <Stack.Screen name="TrialExpired" component={TrialExpiredScreen} />
+          <Stack.Screen name="Login" component={LoginScreen} />
         ) : (
-          <>
-            {RoleNavigator && (
-              <Stack.Screen name="Main" component={RoleNavigator} />
-            )}
-          </>
+          <Stack.Screen name="App" component={AppDrawer} />
         )}
       </Stack.Navigator>
     </NavigationContainer>
