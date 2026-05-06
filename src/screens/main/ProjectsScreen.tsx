@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
-  View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, TextInput,
+  View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, TextInput, TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { apiClient } from "@/services/api";
 
 export default function ProjectsScreen() {
+  const navigation = useNavigation<any>();
   const [projects, setProjects] = useState<any[]>([]);
   const [filtered, setFiltered] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +53,7 @@ export default function ProjectsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" colors={["#3B82F6"]} />}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("JobCost", { projectId: item.id })} activeOpacity={0.7}>
             <View style={styles.iconWrap}>
               <Ionicons name="folder-open" size={20} color="#F59E0B" />
             </View>
@@ -63,7 +65,7 @@ export default function ProjectsScreen() {
             <View style={[styles.statusBadge, item.status === "active" ? styles.badgeActive : styles.badgeDefault]}>
               <Text style={styles.badgeText}>{item.status || "active"}</Text>
             </View>
-          </View>
+          </TouchableOpacity>
         )}
         ListEmptyComponent={
           <View style={styles.empty}>

@@ -33,6 +33,7 @@ import VendorsScreen from "@/screens/main/VendorsScreen";
 import PurchaseOrdersScreen from "@/screens/main/PurchaseOrdersScreen";
 import VendorInvoicesScreen from "@/screens/main/VendorInvoicesScreen";
 import SDSLibraryScreen from "@/screens/main/SDSLibraryScreen";
+import JobScheduleScreen from "@/screens/main/JobScheduleScreen";
 import ReportsScreen from "@/screens/main/ReportsScreen";
 import LocationReportScreen from "@/screens/main/LocationReportScreen";
 import ReferralsScreen from "@/screens/main/ReferralsScreen";
@@ -81,6 +82,7 @@ export default function MainScreens() {
       <Stack.Screen name="ActiveWorkers" component={ActiveWorkersScreen} options={{ title: "Active Workers" }} />
       <Stack.Screen name="Projects" component={ProjectsScreen} options={{ title: "Projects" }} />
       <Stack.Screen name="LiveMap" component={LiveMapScreen} options={{ title: "Live Map" }} />
+      <Stack.Screen name="JobSchedule" component={JobScheduleScreen} options={{ title: "Job Schedule" }} />
       <Stack.Screen name="Contractors" component={ContractorsScreen} options={{ title: "Contractors Hub" }} />
 
       {/* Team & Payroll */}
