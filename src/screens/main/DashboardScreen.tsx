@@ -86,6 +86,7 @@ export default function DashboardScreen() {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" colors={["#3B82F6"]} />}
     >
+      <Text style={styles.testVersionLabel}>  V. Teste 10</Text>
       <View style={styles.welcomeSection}>
         <Text style={styles.welcomeText}>Welcome back,</Text>
         <Text style={styles.userName}>{user?.name || "User"}</Text>
@@ -142,6 +143,7 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0A1628" },
+  testVersionLabel: { color: "#EF4444", fontSize: 11, fontWeight: "700", textAlign: "center", paddingTop: 8, letterSpacing: 1 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0A1628" },
   welcomeSection: { padding: 20, paddingBottom: 8 },
   welcomeText: { color: "#8892A4", fontSize: 14 },

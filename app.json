@@ -29,13 +29,21 @@
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES",
+        "READ_MEDIA_VIDEO",
+        "RECORD_AUDIO",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.crewcwm.app"
+      "bundleIdentifier": "com.crewcwm.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "CREW needs camera access to take photos and videos of job sites.",
+        "NSPhotoLibraryUsageDescription": "CREW needs photo library access to upload existing photos and videos to projects.",
+        "NSMicrophoneUsageDescription": "CREW needs microphone access to record videos with audio."
+      }
     },
     "plugins": [
       "expo-secure-store",
@@ -45,6 +53,14 @@
           "locationAlwaysAndWhenInUsePermission": "CREW needs your location to track work hours and job site attendance."
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "CREW needs photo library access to upload existing photos and videos to projects.",
+          "cameraPermission": "CREW needs camera access to take photos and videos of job sites."
+        }
+      ],
+      "expo-document-picker",
       "expo-asset",
       "expo-font"
     ],

@@ -17,11 +17,15 @@ interface AuthStore {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  mustChangePassword: boolean;
+  pendingEmail: string | null;
+  pendingPassword: string | null;
 
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
+  clearMustChangePassword: () => void;
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -29,9 +33,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   isAuthenticated: false,
   isLoading: true,
   error: null,
+  mustChangePassword: false,
+  pendingEmail: null,
+  pendingPassword: null,
 
   login: async (email: string, password: string) => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, mustChangePassword: false });
     try {
       const response = await apiLogin(email, password);
 
@@ -44,6 +51,18 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       if (!result.success) {
         set({ isLoading: false, error: "Login failed" });
         return false;
+      }
+
+      // Check if password change is required
+      if (result.mustChangePassword) {
+        set({
+          isLoading: false,
+          mustChangePassword: true,
+          pendingEmail: email,
+          pendingPassword: password,
+          error: null,
+        });
+        return false; // Don't complete login yet
       }
 
       // After successful login, fetch full user profile
@@ -88,7 +107,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
     await removeToken();
     await AsyncStorage.removeItem(USER_CACHE_KEY);
-    set({ user: null, isAuthenticated: false, isLoading: false, error: null });
+    set({ user: null, isAuthenticated: false, isLoading: false, error: null, mustChangePassword: false, pendingEmail: null, pendingPassword: null });
   },
 
   checkAuth: async () => {
@@ -147,4 +166,5 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+  clearMustChangePassword: () => set({ mustChangePassword: false, pendingEmail: null, pendingPassword: null }),
 }));
