@@ -67,16 +67,26 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchDashboard = useCallback(async () => {
-    try {
-      const [kpiData, statsData, entries] = await Promise.all([
-        apiClient.get<DashboardKPIs>("reports.dashboardKPIs").catch(() => null),
-        apiClient.get<BasicStats>("dashboard.getStats").catch(() => null),
-        apiClient.get<ActiveEntry[]>("time.getActiveEntries").catch(() => []),
-      ]);
+    // Fire all requests independently — render as soon as the FIRST one resolves
+    // This eliminates the "slowest request blocks everything" problem
+    const statsPromise = apiClient.get<BasicStats>("dashboard.getStats").catch(() => null);
+    const kpiPromise = apiClient.get<DashboardKPIs>("reports.dashboardKPIs").catch(() => null);
+    const entriesPromise = apiClient.get<ActiveEntry[]>("time.getActiveEntries").catch(() => []);
 
-      if (kpiData) setKpis(kpiData);
+    // Show content as soon as the fast stats endpoint returns
+    statsPromise.then((statsData) => {
       if (statsData) setBasicStats(statsData);
+      // Remove loading spinner as soon as first data arrives
+      setLoading(false);
+    }).catch(() => { setLoading(false); });
 
+    // KPIs can arrive later — UI updates reactively
+    kpiPromise.then((kpiData) => {
+      if (kpiData) setKpis(kpiData);
+    }).catch(() => {});
+
+    // Active entries can arrive later
+    entriesPromise.then((entries) => {
       if (entries && Array.isArray(entries)) {
         const mapped: ActiveEntry[] = (entries as unknown as Array<Record<string, any>>).map((entry) => ({
           id: entry.id || 0,
@@ -96,12 +106,11 @@ export default function DashboardScreen() {
         }));
         setActiveEntries(mapped);
       }
-    } catch {
-      // Network error — data stays at initial state (zeros)
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    }).catch(() => {});
+
+    // Wait for all to settle for refresh indicator
+    await Promise.allSettled([statsPromise, kpiPromise, entriesPromise]);
+    setRefreshing(false);
   }, []);
 
   useEffect(() => {

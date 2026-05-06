@@ -13,34 +13,94 @@ interface Project {
   status: string;
 }
 
-interface JobCostData {
-  materials: any[];
-  labor: any[];
-  workerBreakdown: {
-    workerId: number;
-    workerName: string;
-    hours: number;
-    daysWorked: number;
-    hourlyRate: number;
-    payType: string;
-    totalCost: number;
-    entries: number;
-  }[];
-  otherCosts: any[];
-  fleet: any[];
-  summary: {
-    estimatedTotal: number;
-    actualTotal: number;
-    variance: number;
-  };
+// The API returns DIFFERENT shapes depending on estimate type:
+// - lump_sum: { estimateType, contractValue, costBreakdown, totalCosts, grossProfit, marginPercent, workerBreakdown, materials, otherCosts, ... }
+// - detailed: { materials, labor, workerBreakdown, otherCosts, fleet, summary: { estimatedTotal, actualTotal, variance }, source }
+// We normalize both into a unified display model.
+
+interface WorkerBreakdownItem {
+  workerId: number;
+  workerName: string;
+  hours: number;
+  daysWorked: number;
+  hourlyRate: number;
+  payType: string;
+  totalCost: number;
+  entries: number;
+  payRate?: number;
+  rateSource?: string;
+}
+
+interface NormalizedCostData {
+  contractValue: number;
+  actualCost: number;
+  laborCost: number;
+  materialsCost: number;
+  otherCost: number;
+  margin: number;
+  marginPercent: string;
+  budgetUsed: number;
+  workerBreakdown: WorkerBreakdownItem[];
   source: string;
+}
+
+function normalizeApiResponse(raw: Record<string, any>): NormalizedCostData {
+  // LUMP SUM format
+  if (raw.estimateType === "lump_sum" || raw.contractValue !== undefined) {
+    const contractValue = Number(raw.contractValue || 0);
+    const totalCosts = Number(raw.totalCosts || 0);
+    const laborCost = Number(raw.costBreakdown?.labor || 0);
+    const materialsCost = Number(raw.costBreakdown?.materials || 0);
+    const fleetCost = Number(raw.costBreakdown?.fleet || 0);
+    const otherCost = Number(raw.costBreakdown?.other || 0) + fleetCost;
+    const margin = contractValue - totalCosts;
+    const marginPercent = contractValue > 0 ? ((margin / contractValue) * 100).toFixed(1) : "0";
+    const budgetUsed = contractValue > 0 ? Math.min((totalCosts / contractValue) * 100, 100) : 0;
+
+    return {
+      contractValue,
+      actualCost: totalCosts,
+      laborCost,
+      materialsCost,
+      otherCost,
+      margin,
+      marginPercent,
+      budgetUsed,
+      workerBreakdown: (raw.workerBreakdown || []) as WorkerBreakdownItem[],
+      source: "lump_sum",
+    };
+  }
+
+  // DETAILED format (original structure with summary)
+  const contractValue = Number(raw.summary?.estimatedTotal || 0);
+  const actualCost = Number(raw.summary?.actualTotal || 0);
+  const laborCost = (raw.labor || []).reduce((s: number, l: any) => s + Number(l.actualCost || 0), 0);
+  const materialsCost = (raw.materials || []).reduce((s: number, m: any) => s + Number(m.actualTotal || 0), 0);
+  const fleetCost = (raw.fleet || []).reduce((s: number, f: any) => s + Number(f.totalCost || 0), 0);
+  const otherCost = (raw.otherCosts || []).reduce((s: number, o: any) => s + Number(o.actualAmount || 0), 0) + fleetCost;
+  const margin = contractValue - actualCost;
+  const marginPercent = contractValue > 0 ? ((margin / contractValue) * 100).toFixed(1) : "0";
+  const budgetUsed = contractValue > 0 ? Math.min((actualCost / contractValue) * 100, 100) : 0;
+
+  return {
+    contractValue,
+    actualCost,
+    laborCost,
+    materialsCost,
+    otherCost,
+    margin,
+    marginPercent,
+    budgetUsed,
+    workerBreakdown: (raw.workerBreakdown || []) as WorkerBreakdownItem[],
+    source: raw.source || "detailed",
+  };
 }
 
 export default function JobCostScreen() {
   const navigation = useNavigation<any>();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
-  const [costData, setCostData] = useState<JobCostData | null>(null);
+  const [costData, setCostData] = useState<NormalizedCostData | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingCost, setLoadingCost] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -48,10 +108,11 @@ export default function JobCostScreen() {
   const fetchProjects = useCallback(async () => {
     try {
       const data = await apiClient.get<Project[]>("projects.list");
-      const activeProjects = (data || []).filter((p) => p.status === "active");
-      setProjects(activeProjects);
-      if (activeProjects.length > 0 && !selectedProjectId) {
-        setSelectedProjectId(activeProjects[0].id);
+      // Show ALL projects (active + completed) so user can check cost for any
+      const allProjects = (data || []).filter((p) => p.status === "active" || p.status === "completed");
+      setProjects(allProjects);
+      if (allProjects.length > 0 && !selectedProjectId) {
+        setSelectedProjectId(allProjects[0].id);
       }
     } catch {} finally {
       setLoading(false);
@@ -62,8 +123,13 @@ export default function JobCostScreen() {
   const fetchCostData = useCallback(async (projectId: number) => {
     setLoadingCost(true);
     try {
-      const data = await apiClient.get<JobCostData>("reports.jobCostDetail", { projectId });
-      setCostData(data);
+      const rawData = await apiClient.get<Record<string, any>>("reports.jobCostDetail", { projectId });
+      if (rawData) {
+        const normalized = normalizeApiResponse(rawData);
+        setCostData(normalized);
+      } else {
+        setCostData(null);
+      }
     } catch {
       setCostData(null);
     } finally {
@@ -88,18 +154,17 @@ export default function JobCostScreen() {
     return "$" + val.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   };
 
-  // Calculate derived values
-  const contractValue = costData?.summary?.estimatedTotal || 0;
-  const actualCost = costData?.summary?.actualTotal || 0;
-  const laborCost = costData?.labor?.reduce((s, l) => s + (l.actualCost || 0), 0) || 0;
-  const materialsCost = costData?.materials?.reduce((s, m) => s + (m.actualTotal || 0), 0) || 0;
-  const otherCost = (costData?.otherCosts?.reduce((s, o) => s + (o.actualAmount || 0), 0) || 0) +
-    (costData?.fleet?.reduce((s, f) => s + (f.totalCost || 0), 0) || 0);
-  const margin = contractValue - actualCost;
-  const marginPercent = contractValue > 0 ? ((margin / contractValue) * 100).toFixed(1) : "0";
-  const budgetUsed = contractValue > 0 ? Math.min((actualCost / contractValue) * 100, 100) : 0;
+  // Use normalized data directly
+  const contractValue = costData?.contractValue || 0;
+  const actualCost = costData?.actualCost || 0;
+  const laborCost = costData?.laborCost || 0;
+  const materialsCost = costData?.materialsCost || 0;
+  const otherCost = costData?.otherCost || 0;
+  const margin = costData?.margin || 0;
+  const marginPercent = costData?.marginPercent || "0";
+  const budgetUsed = costData?.budgetUsed || 0;
 
-  // Cost breakdown for display
+  // Cost breakdown percentages for display
   const totalBreakdown = laborCost + materialsCost + otherCost;
   const laborPct = totalBreakdown > 0 ? (laborCost / totalBreakdown * 100).toFixed(0) : "0";
   const materialsPct = totalBreakdown > 0 ? (materialsCost / totalBreakdown * 100).toFixed(0) : "0";
@@ -130,7 +195,7 @@ export default function JobCostScreen() {
           <ActivityIndicator size="small" color="#3B82F6" />
           <Text style={styles.loadingText}>Loading cost data...</Text>
         </View>
-      ) : !costData ? (
+      ) : !costData || (costData.contractValue === 0 && costData.actualCost === 0) ? (
         <View style={styles.emptyCard}>
           <Ionicons name="analytics-outline" size={32} color="#5A6A80" />
           <Text style={styles.emptyText}>No cost data available for this project</Text>
@@ -233,7 +298,7 @@ export default function JobCostScreen() {
           {costData.workerBreakdown && costData.workerBreakdown.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Worker Breakdown</Text>
-              {costData.workerBreakdown.map((worker) => (
+              {costData.workerBreakdown.map((worker: WorkerBreakdownItem) => (
                 <View key={worker.workerId} style={styles.workerRow}>
                   <View style={styles.workerAvatar}>
                     <Text style={styles.workerInitial}>{(worker.workerName || "W").charAt(0).toUpperCase()}</Text>
@@ -241,10 +306,10 @@ export default function JobCostScreen() {
                   <View style={styles.workerInfo}>
                     <Text style={styles.workerName}>{worker.workerName}</Text>
                     <Text style={styles.workerMeta}>
-                      {worker.hours.toFixed(1)}h · {worker.daysWorked}d · ${worker.hourlyRate.toFixed(0)}/{worker.payType === "daily" ? "day" : "hr"}
+                      {Number(worker.hours || 0).toFixed(1)}h · {worker.daysWorked}d · ${Number(worker.hourlyRate || worker.payRate || 0).toFixed(0)}/{worker.payType === "daily" ? "day" : worker.payType === "weekly" ? "wk" : "hr"}
                     </Text>
                   </View>
-                  <Text style={styles.workerCost}>{formatCurrency(worker.totalCost)}</Text>
+                  <Text style={styles.workerCost}>{formatCurrency(Number(worker.totalCost || 0))}</Text>
                 </View>
               ))}
             </View>

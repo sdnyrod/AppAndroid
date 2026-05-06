@@ -2,13 +2,18 @@ import React, { useEffect, useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
   ActivityIndicator, TouchableOpacity, Alert, Dimensions,
+  TextInput, FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { apiClient } from "@/services/api";
-import { useNavigation } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
+const CHIP_WIDTH = (width - 48 - 8) / 2; // 2 columns with gap
+
+// =============================================================================
+// TYPES
+// =============================================================================
 
 interface Project {
   id: number;
@@ -28,20 +33,46 @@ interface CrewMember {
   id: number;
   name: string;
   status: "working" | "not_working";
-  projectName?: string;
-  clockIn?: string;
+  projectName: string;
+  clockIn: string;
+  elapsed: string;
 }
 
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+function getElapsedTime(clockInISO: string): string {
+  if (!clockInISO) return "";
+  try {
+    const clockIn = new Date(clockInISO);
+    const now = new Date();
+    const diffMs = now.getTime() - clockIn.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 60) return `${diffMin}M`;
+    const hours = Math.floor(diffMin / 60);
+    const mins = diffMin % 60;
+    return `${hours}h${mins > 0 ? `${mins}m` : ""}`;
+  } catch {
+    return "";
+  }
+}
+
+// =============================================================================
+// COMPONENT
+// =============================================================================
+
 export default function TimeTrackingScreen() {
-  const navigation = useNavigation<any>();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
   const [activeEntry, setActiveEntry] = useState<ActiveEntry | null>(null);
-  const [crewMembers, setCrewMembers] = useState<CrewMember[]>([]);
+  const [crewWorking, setCrewWorking] = useState<CrewMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [clockingIn, setClockingIn] = useState(false);
   const [clockingOut, setClockingOut] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -50,7 +81,14 @@ export default function TimeTrackingScreen() {
         apiClient.get<any>("time.getActive"),
         apiClient.get<any[]>("time.getAllActive").catch(() => []),
       ]);
-      setProjects((projectList || []).filter((p: any) => p.status === "active" || !p.status));
+
+      // Filter active projects
+      const activeProjects = (projectList || []).filter(
+        (p: any) => p.status === "active" || !p.status
+      );
+      setProjects(activeProjects);
+
+      // Current user's active entry
       if (active) {
         setActiveEntry({
           id: active.id,
@@ -61,18 +99,27 @@ export default function TimeTrackingScreen() {
       } else {
         setActiveEntry(null);
       }
+
       // Build crew list from all active entries
+      // API returns { entry: {...}, user: {...}, project: {...} }
       if (allActive && Array.isArray(allActive)) {
-        const working: CrewMember[] = allActive.map((e: any) => ({
-          id: e.userId || e.id,
-          name: e.employeeName || e.user?.name || "Worker",
-          status: "working" as const,
-          projectName: e.projectName || e.project?.name || "",
-          clockIn: e.clockIn || e.clockInTime || "",
-        }));
-        setCrewMembers(working);
+        const working: CrewMember[] = allActive.map((e: any) => {
+          const entry = e.entry || e;
+          const user = e.user || {};
+          const project = e.project || {};
+          const clockIn = entry.clockIn || entry.clockInTime || e.clockIn || "";
+          return {
+            id: user.id || entry.userId || entry.id || Math.random(),
+            name: user.name || e.employeeName || e.userName || "Worker",
+            status: "working" as const,
+            projectName: project.name || e.projectName || "",
+            clockIn,
+            elapsed: getElapsedTime(clockIn),
+          };
+        });
+        setCrewWorking(working);
       }
-    } catch (e) {
+    } catch {
       // Silently handle
     } finally {
       setLoading(false);
@@ -140,81 +187,116 @@ export default function TimeTrackingScreen() {
   useEffect(() => { fetchData(); }, [fetchData]);
   const onRefresh = () => { setRefreshing(true); fetchData(); };
 
-  if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color="#3B82F6" /></View>;
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </View>
+    );
+  }
 
   const isClockedIn = !!activeEntry;
 
-  // Show first 5 projects vertically, then 2x2 grid for the rest
-  const firstFive = projects.slice(0, 5);
-  const remaining = projects.slice(5);
+  // Filter projects by search text (inline search)
+  const filteredProjects = searchText.trim()
+    ? projects.filter((p) => p.name.toLowerCase().includes(searchText.toLowerCase()))
+    : projects;
+
+  // Show max 8 project chips (or all filtered results if searching)
+  const displayProjects = searchText.trim() ? filteredProjects : filteredProjects.slice(0, 8);
 
   return (
-    <ScrollView style={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" colors={["#3B82F6"]} />}>
-
-      {/* Status Banner */}
-      {isClockedIn && activeEntry && (
-        <View style={styles.statusBanner}>
-          <View style={styles.statusDot} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.statusText}>Clocked In</Text>
-            <Text style={styles.statusProject}>{activeEntry.projectName}</Text>
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" colors={["#3B82F6"]} />
+      }
+    >
+      {/* ================================================================ */}
+      {/* STATUS SECTION (when clocked in) */}
+      {/* ================================================================ */}
+      {isClockedIn && activeEntry ? (
+        <View style={styles.statusSection}>
+          <View style={styles.statusBanner}>
+            <View style={styles.statusDotGreen} />
+            <Text style={styles.statusLabel}>CLOCKED IN</Text>
           </View>
+          <Text style={styles.statusProject}>{activeEntry.projectName}</Text>
           <Text style={styles.statusTime}>
             Since {new Date(activeEntry.clockIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            {" · "}{getElapsedTime(activeEntry.clockIn)}
           </Text>
         </View>
-      )}
+      ) : (
+        /* ================================================================ */
+        /* PROJECT SELECTION (when NOT clocked in) */
+        /* ================================================================ */
+        <View style={styles.projectSection}>
+          <View style={styles.statusBanner}>
+            <View style={styles.statusDotGray} />
+            <Text style={styles.statusLabelGray}>NOT CLOCKED IN</Text>
+          </View>
+          <Text style={styles.selectLabel}>Select a project and tap to start</Text>
 
-      {/* Project Pills Section */}
-      {!isClockedIn && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select Project</Text>
-
-          {/* First 5 vertical */}
-          {firstFive.map((project) => (
-            <TouchableOpacity
-              key={project.id}
-              style={[styles.projectPill, selectedProject === project.id && styles.projectPillSelected]}
-              onPress={() => setSelectedProject(project.id)}
-            >
-              <View style={[styles.pillDot, selectedProject === project.id && styles.pillDotSelected]} />
-              <Text style={[styles.pillText, selectedProject === project.id && styles.pillTextSelected]}>
-                {project.name}
-              </Text>
-              {selectedProject === project.id && (
-                <Ionicons name="checkmark-circle" size={18} color="#10B981" />
-              )}
-            </TouchableOpacity>
-          ))}
-
-          {/* Remaining in 2x2 grid */}
-          {remaining.length > 0 && (
-            <View style={styles.projectGrid}>
-              {remaining.map((project) => (
-                <TouchableOpacity
-                  key={project.id}
-                  style={[styles.projectGridItem, selectedProject === project.id && styles.projectGridItemSelected]}
-                  onPress={() => setSelectedProject(project.id)}
+          {/* Project chips - 2 columns */}
+          <View style={styles.chipGrid}>
+            {displayProjects.map((project) => (
+              <TouchableOpacity
+                key={project.id}
+                style={[
+                  styles.chip,
+                  selectedProject === project.id && styles.chipSelected,
+                ]}
+                onPress={() => setSelectedProject(project.id)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.chipRadio, selectedProject === project.id && styles.chipRadioSelected]} />
+                <Text
+                  style={[styles.chipText, selectedProject === project.id && styles.chipTextSelected]}
+                  numberOfLines={2}
                 >
-                  <Text style={[styles.gridItemText, selectedProject === project.id && styles.gridItemTextSelected]} numberOfLines={2}>
-                    {project.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+                  {project.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
 
-          {/* Search Button */}
-          {projects.length > 7 && (
-            <TouchableOpacity style={styles.searchBtn} onPress={() => navigation.navigate("Projects")}>
-              <Ionicons name="search" size={16} color="#3B82F6" />
-              <Text style={styles.searchBtnText}>Search All Projects</Text>
-            </TouchableOpacity>
-          )}
+            {/* Search chip (always last) */}
+            {!showSearch ? (
+              <TouchableOpacity
+                style={styles.searchChip}
+                onPress={() => setShowSearch(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="search" size={14} color="#3B82F6" />
+                <Text style={styles.searchChipText}>Search...</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.searchInputWrap}>
+                <Ionicons name="search" size={14} color="#3B82F6" />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Type to filter..."
+                  placeholderTextColor="#5A6A80"
+                  value={searchText}
+                  onChangeText={setSearchText}
+                  autoFocus
+                  returnKeyType="done"
+                  onBlur={() => { if (!searchText) setShowSearch(false); }}
+                />
+                {searchText.length > 0 && (
+                  <TouchableOpacity onPress={() => { setSearchText(""); setShowSearch(false); }}>
+                    <Ionicons name="close-circle" size={16} color="#5A6A80" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
         </View>
       )}
 
-      {/* Large Circular Clock Button */}
+      {/* ================================================================ */}
+      {/* LARGE CIRCULAR CLOCK BUTTON */}
+      {/* ================================================================ */}
       <View style={styles.clockSection}>
         {isClockedIn ? (
           <TouchableOpacity
@@ -227,7 +309,7 @@ export default function TimeTrackingScreen() {
               <ActivityIndicator color="#FFFFFF" size="large" />
             ) : (
               <>
-                <Ionicons name="stop-circle" size={40} color="#FFFFFF" />
+                <Ionicons name="stop-circle" size={36} color="#FFFFFF" />
                 <Text style={styles.circularButtonText}>CLOCK OUT</Text>
               </>
             )}
@@ -236,14 +318,14 @@ export default function TimeTrackingScreen() {
           <TouchableOpacity
             style={[styles.circularButton, styles.circularButtonIn]}
             onPress={handleClockIn}
-            disabled={clockingIn}
+            disabled={clockingIn || !selectedProject}
             activeOpacity={0.7}
           >
             {clockingIn ? (
               <ActivityIndicator color="#FFFFFF" size="large" />
             ) : (
               <>
-                <Ionicons name="play-circle" size={40} color="#FFFFFF" />
+                <Ionicons name="play-circle" size={36} color="#FFFFFF" />
                 <Text style={styles.circularButtonText}>CLOCK IN</Text>
               </>
             )}
@@ -251,42 +333,45 @@ export default function TimeTrackingScreen() {
         )}
       </View>
 
-      {/* Crew Management Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Crew Management</Text>
+      {/* ================================================================ */}
+      {/* CREW MANAGEMENT */}
+      {/* ================================================================ */}
+      <View style={styles.crewSection}>
+        <View style={styles.crewHeader}>
+          <Ionicons name="people" size={18} color="#FFFFFF" />
+          <Text style={styles.crewTitle}>Crew Management</Text>
+        </View>
 
-        {/* Currently Working */}
-        {crewMembers.length > 0 && (
-          <View style={styles.crewSubsection}>
-            <Text style={styles.crewSubtitle}>WORKING ({crewMembers.length})</Text>
-            {crewMembers.slice(0, 5).map((member) => (
+        {/* Working Now */}
+        {crewWorking.length > 0 && (
+          <>
+            <View style={styles.crewSubheader}>
+              <View style={styles.crewLiveDot} />
+              <Text style={styles.crewSubtitleGreen}>WORKING NOW ({crewWorking.length})</Text>
+            </View>
+            {crewWorking.map((member) => (
               <View key={member.id} style={styles.crewCard}>
-                <View style={styles.crewAvatar}>
+                <View style={[styles.crewAvatar, styles.crewAvatarActive]}>
                   <Text style={styles.crewInitial}>{(member.name || "W").charAt(0).toUpperCase()}</Text>
                 </View>
                 <View style={styles.crewInfo}>
                   <Text style={styles.crewName}>{member.name}</Text>
-                  <Text style={styles.crewProject}>{member.projectName}</Text>
+                  <Text style={styles.crewProject}>{member.projectName}  {member.elapsed}</Text>
                 </View>
-                <View style={styles.crewStatusWrap}>
-                  <View style={styles.crewLiveDot} />
-                  <Text style={styles.crewTime}>
-                    {member.clockIn ? new Date(member.clockIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
-                  </Text>
-                </View>
+                <TouchableOpacity style={styles.clockOutBadge}>
+                  <Ionicons name="stop" size={10} color="#FFFFFF" />
+                  <Text style={styles.clockOutBadgeText}>Out</Text>
+                </TouchableOpacity>
               </View>
             ))}
-          </View>
+          </>
         )}
 
-        {/* Not Working */}
-        {crewMembers.length === 0 && (
-          <View style={styles.crewSubsection}>
-            <Text style={styles.crewSubtitle}>NOT WORKING</Text>
-            <View style={styles.emptyCrewCard}>
-              <Ionicons name="people-outline" size={20} color="#5A6A80" />
-              <Text style={styles.emptyCrewText}>No crew data available</Text>
-            </View>
+        {/* No active workers */}
+        {crewWorking.length === 0 && (
+          <View style={styles.emptyCrewCard}>
+            <Ionicons name="people-outline" size={20} color="#5A6A80" />
+            <Text style={styles.emptyCrewText}>No workers currently clocked in</Text>
           </View>
         )}
       </View>
@@ -296,72 +381,88 @@ export default function TimeTrackingScreen() {
   );
 }
 
+// =============================================================================
+// STYLES
+// =============================================================================
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0A1628" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0A1628" },
 
-  // Status Banner
-  statusBanner: {
-    flexDirection: "row", alignItems: "center", margin: 16,
-    backgroundColor: "#052E16", borderRadius: 12, padding: 16,
-    borderWidth: 1, borderColor: "#166534",
-  },
-  statusDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#10B981", marginRight: 12 },
-  statusText: { color: "#10B981", fontSize: 14, fontWeight: "700" },
-  statusProject: { color: "#86EFAC", fontSize: 12, marginTop: 2 },
-  statusTime: { color: "#86EFAC", fontSize: 12, fontWeight: "500" },
+  // Status Section (clocked in)
+  statusSection: { paddingHorizontal: 16, paddingTop: 12 },
+  statusBanner: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
+  statusDotGreen: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#10B981" },
+  statusDotGray: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#5A6A80" },
+  statusLabel: { color: "#10B981", fontSize: 12, fontWeight: "700", letterSpacing: 1 },
+  statusLabelGray: { color: "#8892A4", fontSize: 12, fontWeight: "700", letterSpacing: 1 },
+  statusProject: { color: "#FFFFFF", fontSize: 15, fontWeight: "600", marginTop: 4 },
+  statusTime: { color: "#86EFAC", fontSize: 12, marginTop: 2 },
 
-  // Section
-  section: { paddingHorizontal: 16, marginBottom: 20 },
-  sectionTitle: { color: "#FFFFFF", fontSize: 16, fontWeight: "600", marginBottom: 12 },
+  // Project Selection Section
+  projectSection: { paddingHorizontal: 16, paddingTop: 12 },
+  selectLabel: { color: "#8892A4", fontSize: 13, marginBottom: 12, marginTop: 4 },
 
-  // Project Pills
-  projectPill: {
-    flexDirection: "row", alignItems: "center", padding: 14,
-    backgroundColor: "#0F1D32", borderRadius: 10, marginBottom: 8,
+  // Chip Grid (2 columns)
+  chipGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
+    width: CHIP_WIDTH,
+    paddingVertical: 10, paddingHorizontal: 12,
+    backgroundColor: "#0F1D32", borderRadius: 20,
     borderWidth: 1, borderColor: "#1A2A40",
+    flexDirection: "row", alignItems: "center", gap: 8,
   },
-  projectPillSelected: { borderColor: "#10B981", backgroundColor: "#0F2D1F" },
-  pillDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#5A6A80", marginRight: 12 },
-  pillDotSelected: { backgroundColor: "#10B981" },
-  pillText: { color: "#E2E8F0", fontSize: 14, flex: 1 },
-  pillTextSelected: { color: "#10B981", fontWeight: "600" },
+  chipSelected: { borderColor: "#3B82F6", backgroundColor: "#0F1D42" },
+  chipRadio: {
+    width: 14, height: 14, borderRadius: 7,
+    borderWidth: 1.5, borderColor: "#5A6A80",
+  },
+  chipRadioSelected: { borderColor: "#3B82F6", backgroundColor: "#3B82F6" },
+  chipText: { color: "#C8D0DC", fontSize: 12, flex: 1 },
+  chipTextSelected: { color: "#FFFFFF", fontWeight: "600" },
 
-  // Project Grid (2x2)
-  projectGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
-  projectGridItem: {
-    width: (width - 48) / 2, padding: 14,
-    backgroundColor: "#0F1D32", borderRadius: 10,
-    borderWidth: 1, borderColor: "#1A2A40", justifyContent: "center",
+  // Search chip
+  searchChip: {
+    width: CHIP_WIDTH,
+    paddingVertical: 10, paddingHorizontal: 12,
+    backgroundColor: "transparent", borderRadius: 20,
+    borderWidth: 1, borderColor: "#3B82F6",
+    flexDirection: "row", alignItems: "center", gap: 6,
+    justifyContent: "center",
   },
-  projectGridItemSelected: { borderColor: "#10B981", backgroundColor: "#0F2D1F" },
-  gridItemText: { color: "#E2E8F0", fontSize: 13, textAlign: "center" },
-  gridItemTextSelected: { color: "#10B981", fontWeight: "600" },
-
-  // Search Button
-  searchBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    marginTop: 12, paddingVertical: 10, gap: 6,
+  searchChipText: { color: "#3B82F6", fontSize: 12, fontWeight: "500" },
+  searchInputWrap: {
+    width: CHIP_WIDTH,
+    paddingVertical: 6, paddingHorizontal: 12,
+    backgroundColor: "#0F1D32", borderRadius: 20,
+    borderWidth: 1, borderColor: "#3B82F6",
+    flexDirection: "row", alignItems: "center", gap: 6,
   },
-  searchBtnText: { color: "#3B82F6", fontSize: 13, fontWeight: "500" },
+  searchInput: { flex: 1, color: "#FFFFFF", fontSize: 12, paddingVertical: 4 },
 
   // Circular Clock Button
-  clockSection: { alignItems: "center", paddingVertical: 24 },
+  clockSection: { alignItems: "center", paddingVertical: 20 },
   circularButton: {
-    width: 140, height: 140, borderRadius: 70,
+    width: 130, height: 130, borderRadius: 65,
     justifyContent: "center", alignItems: "center",
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
   },
-  circularButtonIn: { backgroundColor: "#10B981" },
+  circularButtonIn: { backgroundColor: "#5EEAD4" },
   circularButtonOut: { backgroundColor: "#EF4444" },
-  circularButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "800", marginTop: 4, letterSpacing: 1 },
+  circularButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800", marginTop: 4, letterSpacing: 1 },
 
-  // Crew Management
-  crewSubsection: { marginTop: 8 },
-  crewSubtitle: { color: "#8892A4", fontSize: 11, fontWeight: "700", letterSpacing: 1, marginBottom: 8 },
+  // Crew Section
+  crewSection: { paddingHorizontal: 16, marginTop: 4 },
+  crewHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
+  crewTitle: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
+  crewSubheader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
+  crewLiveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#10B981" },
+  crewSubtitleGreen: { color: "#10B981", fontSize: 11, fontWeight: "700", letterSpacing: 0.5 },
+
+  // Crew Card
   crewCard: {
-    flexDirection: "row", alignItems: "center", padding: 12,
+    flexDirection: "row", alignItems: "center", padding: 10,
     backgroundColor: "#0F1D32", borderRadius: 10, marginBottom: 6,
     borderWidth: 1, borderColor: "#1A2A40",
   },
@@ -369,13 +470,21 @@ const styles = StyleSheet.create({
     width: 34, height: 34, borderRadius: 17,
     backgroundColor: "#1E3A5F", justifyContent: "center", alignItems: "center", marginRight: 10,
   },
-  crewInitial: { color: "#3B82F6", fontSize: 13, fontWeight: "700" },
+  crewAvatarActive: { backgroundColor: "#065F46" },
+  crewInitial: { color: "#10B981", fontSize: 13, fontWeight: "700" },
   crewInfo: { flex: 1 },
   crewName: { color: "#E2E8F0", fontSize: 13, fontWeight: "600" },
   crewProject: { color: "#8892A4", fontSize: 11, marginTop: 2 },
-  crewStatusWrap: { flexDirection: "row", alignItems: "center", gap: 4 },
-  crewLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#10B981" },
-  crewTime: { color: "#10B981", fontSize: 11, fontWeight: "500" },
+
+  // Clock out badge on crew card
+  clockOutBadge: {
+    flexDirection: "row", alignItems: "center", gap: 3,
+    backgroundColor: "#EF4444", borderRadius: 6,
+    paddingHorizontal: 8, paddingVertical: 4,
+  },
+  clockOutBadgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700" },
+
+  // Empty state
   emptyCrewCard: {
     flexDirection: "row", alignItems: "center", gap: 8,
     backgroundColor: "#0F1D32", borderRadius: 10, padding: 16,
