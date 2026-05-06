@@ -201,6 +201,16 @@ export default function JobCostScreen() {
         ))}
       </ScrollView>
 
+      {/* Selected Project Name Header */}
+      {selectedProjectId && projects.length > 0 && (
+        <View style={styles.projectNameHeader}>
+          <Ionicons name="business-outline" size={18} color="#3B82F6" />
+          <Text style={styles.projectNameText} numberOfLines={2}>
+            {projects.find((p) => p.id === selectedProjectId)?.name || ""}
+          </Text>
+        </View>
+      )}
+
       {loadingCost ? (
         <View style={styles.loadingSection}>
           <ActivityIndicator size="small" color="#3B82F6" />
@@ -336,6 +346,16 @@ export default function JobCostScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0A1628" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0A1628" },
+
+  // Project Name Header
+  projectNameHeader: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    marginHorizontal: 16, marginTop: 12, marginBottom: 4,
+    paddingVertical: 10, paddingHorizontal: 14,
+    backgroundColor: "#0F1D32", borderRadius: 10,
+    borderWidth: 1, borderColor: "#1A2A40",
+  },
+  projectNameText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700", flex: 1 },
 
   // Project Selector
   projectSelector: { maxHeight: 50, marginTop: 8 },

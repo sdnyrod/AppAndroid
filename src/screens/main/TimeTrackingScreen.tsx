@@ -1,15 +1,15 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
   ActivityIndicator, TouchableOpacity, Alert, Dimensions,
-  TextInput, Modal, KeyboardAvoidingView, Platform,
+  TextInput, Modal, KeyboardAvoidingView, Platform, FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { apiClient } from "@/services/api";
 
 const { width, height } = Dimensions.get("window");
-const CHIP_WIDTH = (width - 48 - 8) / 2; // 2 columns with gap
+const CHIP_WIDTH = (width - 48 - 8) / 2;
 
 // =============================================================================
 // TYPES
@@ -78,19 +78,32 @@ export default function TimeTrackingScreen() {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchText, setSearchText] = useState("");
 
+  // =========================================================================
+  // DATA FETCHING
+  // =========================================================================
+
+  const fetchProjects = useCallback(async (): Promise<Project[]> => {
+    // Try getActive first; if it returns null/empty, fall back to list
+    const active = await apiClient.get<Project[]>("projects.getActive");
+    if (active && active.length > 0) {
+      return active.filter((p) => p.status === "active" || !p.status);
+    }
+    const all = await apiClient.get<Project[]>("projects.list");
+    if (all && all.length > 0) {
+      return all.filter((p) => p.status === "active" || !p.status);
+    }
+    return [];
+  }, []);
+
   const fetchData = useCallback(async () => {
     try {
       const [projectList, active, allActive] = await Promise.all([
-        apiClient.get<Project[]>("projects.getActive").catch(() => apiClient.get<Project[]>("projects.list")),
+        fetchProjects(),
         apiClient.get<any>("time.getActive"),
-        apiClient.get<any[]>("time.getAllActive").catch(() => []),
+        apiClient.get<any[]>("time.getAllActive"),
       ]);
 
-      // Filter active projects
-      const activeProjects = (projectList || []).filter(
-        (p: any) => p.status === "active" || !p.status
-      );
-      setProjects(activeProjects);
+      setProjects(projectList);
 
       // Current user's active entry
       if (active) {
@@ -105,7 +118,6 @@ export default function TimeTrackingScreen() {
       }
 
       // Build crew list from all active entries
-      // API returns { entry: {...}, user: {...}, project: {...} }
       if (allActive && Array.isArray(allActive)) {
         const working: CrewMember[] = allActive.map((e: any) => {
           const entry = e.entry || e;
@@ -124,12 +136,23 @@ export default function TimeTrackingScreen() {
         setCrewWorking(working);
       }
     } catch {
-      // Silently handle
+      // Network/auth errors handled silently
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [fetchProjects]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
+
+  // =========================================================================
+  // ACTIONS
+  // =========================================================================
 
   const getLocation = async () => {
     try {
@@ -195,8 +218,27 @@ export default function TimeTrackingScreen() {
     setSearchText("");
   };
 
-  useEffect(() => { fetchData(); }, [fetchData]);
-  const onRefresh = () => { setRefreshing(true); fetchData(); };
+  // =========================================================================
+  // DERIVED STATE
+  // =========================================================================
+
+  const isClockedIn = !!activeEntry;
+  const displayProjects = projects.slice(0, 7);
+
+  // Memoize filtered list so it only recalculates when searchText or projects change
+  const filteredProjects = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+    if (!query) return projects;
+    return projects.filter(
+      (p) =>
+        p.name.toLowerCase().includes(query) ||
+        (p.clientName && p.clientName.toLowerCase().includes(query))
+    );
+  }, [searchText, projects]);
+
+  // =========================================================================
+  // RENDER
+  // =========================================================================
 
   if (loading) {
     return (
@@ -206,15 +248,23 @@ export default function TimeTrackingScreen() {
     );
   }
 
-  const isClockedIn = !!activeEntry;
-
-  // Show max 8 project chips (first 7 + search button)
-  const displayProjects = projects.slice(0, 7);
-
-  // Filter projects for modal search
-  const filteredProjects = searchText.trim()
-    ? projects.filter((p) => p.name.toLowerCase().includes(searchText.toLowerCase()))
-    : projects;
+  const renderModalProject = ({ item }: { item: Project }) => (
+    <TouchableOpacity
+      style={[
+        styles.modalProjectItem,
+        selectedProject === item.id && styles.modalProjectItemSelected,
+      ]}
+      onPress={() => selectProject(item)}
+      activeOpacity={0.7}
+    >
+      <Text style={styles.modalProjectName} numberOfLines={1}>
+        {item.name}
+      </Text>
+      {item.clientName ? (
+        <Text style={styles.modalProjectClient}>{item.clientName}</Text>
+      ) : null}
+    </TouchableOpacity>
+  );
 
   return (
     <View style={styles.container}>
@@ -333,7 +383,6 @@ export default function TimeTrackingScreen() {
             <Text style={styles.crewTitle}>Crew Management</Text>
           </View>
 
-          {/* Working Now */}
           {crewWorking.length > 0 && (
             <>
               <View style={styles.crewSubheader}>
@@ -358,7 +407,6 @@ export default function TimeTrackingScreen() {
             </>
           )}
 
-          {/* No active workers */}
           {crewWorking.length === 0 && (
             <View style={styles.emptyCrewCard}>
               <Ionicons name="people-outline" size={20} color="#5A6A80" />
@@ -404,7 +452,7 @@ export default function TimeTrackingScreen() {
                 placeholderTextColor="#5A6A80"
                 value={searchText}
                 onChangeText={setSearchText}
-                autoFocus
+                autoFocus={false}
                 returnKeyType="search"
               />
               {searchText.length > 0 && (
@@ -415,31 +463,22 @@ export default function TimeTrackingScreen() {
             </View>
 
             {/* Project List */}
-            <ScrollView style={styles.modalList} keyboardShouldPersistTaps="handled">
-              {filteredProjects.map((project) => (
-                <TouchableOpacity
-                  key={project.id}
-                  style={[
-                    styles.modalProjectItem,
-                    selectedProject === project.id && styles.modalProjectItemSelected,
-                  ]}
-                  onPress={() => selectProject(project)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.modalProjectName} numberOfLines={1}>
-                    {project.name}
-                  </Text>
-                  {project.clientName && (
-                    <Text style={styles.modalProjectClient}>{project.clientName}</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
-              {filteredProjects.length === 0 && (
+            <FlatList
+              data={filteredProjects}
+              keyExtractor={(item) => String(item.id)}
+              renderItem={renderModalProject}
+              style={styles.modalList}
+              keyboardShouldPersistTaps="handled"
+              ListEmptyComponent={
                 <View style={styles.modalEmpty}>
-                  <Text style={styles.modalEmptyText}>No projects found</Text>
+                  <Text style={styles.modalEmptyText}>
+                    {projects.length === 0
+                      ? "No projects available"
+                      : `No projects match "${searchText}"`}
+                  </Text>
                 </View>
-              )}
-            </ScrollView>
+              }
+            />
           </KeyboardAvoidingView>
         </View>
       </Modal>
