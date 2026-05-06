@@ -36,7 +36,12 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "USE_BIOMETRIC",
         "USE_FINGERPRINT"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDl8aE-uKk5MpNowptzJ0UguDL0V4T9Bfo"
+        }
+      }
     },
     "ios": {
       "supportsTablet": true,

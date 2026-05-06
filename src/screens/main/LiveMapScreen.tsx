@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from "react-native-maps";
 import { apiClient } from "@/services/api";
 
 // =============================================================================
@@ -298,7 +298,7 @@ export default function LiveMapScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={PROVIDER_DEFAULT}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
         initialRegion={initialRegion}
         showsUserLocation={true}
         showsMyLocationButton={false}
