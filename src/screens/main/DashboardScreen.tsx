@@ -62,13 +62,21 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchDashboard = useCallback(async () => {
+  const fetchDashboard = useCallback(async (retryCount = 0) => {
     try {
       const [kpiData, statsData, entries] = await Promise.all([
         apiClient.get<DashboardKPIs>("reports.dashboardKPIs").catch(() => null),
         apiClient.get<BasicStats>("dashboard.getStats").catch(() => null),
         apiClient.get<any[]>("time.getActiveEntries").catch(() => []),
       ]);
+
+      // If ALL data is null and we haven't retried yet, the token might not be ready.
+      // Wait and retry up to 3 times with increasing delay.
+      if (!kpiData && !statsData && retryCount < 3) {
+        const delay = (retryCount + 1) * 1000; // 1s, 2s, 3s
+        setTimeout(() => fetchDashboard(retryCount + 1), delay);
+        return; // Don't set loading=false yet — keep spinner
+      }
 
       if (kpiData) setKpis(kpiData);
       if (statsData) setBasicStats(statsData);
@@ -83,9 +91,16 @@ export default function DashboardScreen() {
           }))
         );
       }
+
+      setLoading(false);
+      setRefreshing(false);
     } catch (e) {
-      // Silently handle
-    } finally {
+      // If fetch threw and we can retry, do so
+      if (retryCount < 3) {
+        const delay = (retryCount + 1) * 1000;
+        setTimeout(() => fetchDashboard(retryCount + 1), delay);
+        return;
+      }
       setLoading(false);
       setRefreshing(false);
     }
@@ -142,6 +157,7 @@ export default function DashboardScreen() {
       icon: "people",
       color: "#3B82F6",
       borderColor: "#3B82F6",
+      screen: "ActiveWorkers",
     },
     {
       label: "CLOCK IN",
@@ -151,6 +167,7 @@ export default function DashboardScreen() {
       color: "#10B981",
       borderColor: "#10B981",
       live: true,
+      screen: "TimeTracking",
     },
     {
       label: "TODAY'S HOURS",
@@ -159,6 +176,7 @@ export default function DashboardScreen() {
       icon: "time",
       color: "#6366F1",
       borderColor: "#6366F1",
+      screen: "TimeTracking",
     },
     {
       label: "PAYROLL",
@@ -167,6 +185,7 @@ export default function DashboardScreen() {
       icon: "cash",
       color: "#EF4444",
       borderColor: "#EF4444",
+      screen: "Payroll",
     },
     {
       label: "ACTIVE PROJECTS",
@@ -175,6 +194,7 @@ export default function DashboardScreen() {
       icon: "folder-open",
       color: "#F59E0B",
       borderColor: "#F59E0B",
+      screen: "Projects",
     },
     {
       label: "PIPELINE",
@@ -183,6 +203,7 @@ export default function DashboardScreen() {
       icon: "layers",
       color: "#A855F7",
       borderColor: "#A855F7",
+      screen: "Projects",
     },
     {
       label: "TODAY'S SCHEDULE",
@@ -191,6 +212,7 @@ export default function DashboardScreen() {
       icon: "calendar",
       color: "#14B8A6",
       borderColor: "#14B8A6",
+      screen: "JobSchedule",
     },
     {
       label: "CONTRACTORS",
@@ -199,6 +221,7 @@ export default function DashboardScreen() {
       icon: "construct",
       color: "#F97316",
       borderColor: "#F97316",
+      screen: "ActiveWorkers",
     },
   ];
 
@@ -233,10 +256,15 @@ export default function DashboardScreen() {
         <Text style={styles.dateText}>{dateString}</Text>
       </View>
 
-      {/* 8 Stat Cards - 2x4 grid */}
+      {/* 8 Stat Cards - 2x4 grid - ALL tappable */}
       <View style={styles.statsGrid}>
         {statCards.map((card, idx) => (
-          <View key={idx} style={[styles.statCard, { borderColor: card.borderColor }]}>
+          <TouchableOpacity
+            key={idx}
+            style={[styles.statCard, { borderColor: card.borderColor }]}
+            onPress={() => card.screen && navigation.navigate(card.screen)}
+            activeOpacity={0.7}
+          >
             <View style={styles.statCardTop}>
               <Ionicons name={card.icon as any} size={16} color={card.color} />
               <Text style={[styles.statCardLabel, { color: card.color }]}>{card.label}</Text>
@@ -249,7 +277,7 @@ export default function DashboardScreen() {
             </View>
             <Text style={styles.statCardValue}>{card.value}</Text>
             <Text style={[styles.statCardSubtitle, { color: card.color }]}>{card.subtitle}</Text>
-          </View>
+          </TouchableOpacity>
         ))}
       </View>
 

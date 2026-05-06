@@ -53,6 +53,7 @@ export const MENU_GROUPS: MenuGroup[] = [
     requiredPermission: ["projects.view_all", "projects.view_assigned"],
     items: [
       { id: "projects", label: "Projects", icon: "folder-outline", screen: "Projects", requiredPermission: ["projects.view_all", "projects.view_assigned"] },
+      { id: "job-schedule", label: "Job Schedule", icon: "calendar-outline", screen: "JobSchedule", requiredPermission: ["projects.view_all", "projects.view_assigned"] },
       { id: "dispatch", label: "Dispatch", icon: "bus-outline", screen: "Dispatch", requiredPermission: "time.clock_in_others" },
     ],
   },

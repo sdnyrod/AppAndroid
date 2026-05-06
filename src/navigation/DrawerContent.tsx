@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -10,23 +10,24 @@ import {
 import { DrawerContentComponentProps } from "@react-navigation/drawer";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/store/authStore";
-import { usePermissionsStore } from "@/store/permissionsStore";
-import { getFilteredMenuGroups } from "./menuConfig";
+import { MENU_GROUPS } from "./menuConfig";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function DrawerContent({ navigation }: DrawerContentComponentProps) {
   const { user, logout } = useAuthStore();
-  const { has, hasAny, isOwner, role, loaded, fetchPermissions } = usePermissionsStore();
   const insets = useSafeAreaInsets();
 
-  // Ensure permissions are loaded when drawer opens
-  useEffect(() => {
-    if (!loaded && user) {
-      fetchPermissions();
-    }
-  }, [loaded, user]);
+  // DEFINITIVE: Show ALL menu items for ALL authenticated users.
+  // Access control is enforced by the BACKEND (returns 403 if no permission).
+  // This eliminates all race conditions with permissions loading.
+  const menuGroups = MENU_GROUPS;
 
-  const menuGroups = getFilteredMenuGroups(has, hasAny);
+  // Display role from user object directly
+  const displayRole = (() => {
+    const role = user?.role || "employee";
+    if (role === "owner" || role === "admin") return "Owner";
+    return role.charAt(0).toUpperCase() + role.slice(1);
+  })();
 
   const handleNavigate = (screen: string) => {
     navigation.closeDrawer();
@@ -36,9 +37,6 @@ export default function DrawerContent({ navigation }: DrawerContentComponentProp
   const handleLogout = async () => {
     await logout();
   };
-
-  // Display role correctly
-  const displayRole = isOwner ? "Owner" : role.charAt(0).toUpperCase() + role.slice(1);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -73,7 +71,7 @@ export default function DrawerContent({ navigation }: DrawerContentComponentProp
         </View>
       </View>
 
-      {/* Menu Groups */}
+      {/* Menu Groups - ALL items shown, backend enforces access */}
       <ScrollView style={styles.menuScroll} showsVerticalScrollIndicator={false}>
         {menuGroups.map((group) => (
           <View key={group.id} style={styles.menuGroup}>
