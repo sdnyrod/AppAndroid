@@ -3,25 +3,45 @@ import * as SecureStore from "expo-secure-store";
 
 const TOKEN_KEY = "crew_auth_token";
 
+// --- In-Memory Token Cache ---
+// CRITICAL: iOS SecureStore has async latency. After storeToken(), a subsequent
+// getStoredToken() may return null if the keychain write hasn't flushed yet.
+// We keep an in-memory copy that is ALWAYS up-to-date and use it as primary source.
+let _memoryToken: string | null = null;
+
 // --- Token Management ---
 
 export async function getStoredToken(): Promise<string | null> {
+  // Memory cache is the primary source (always in sync)
+  if (_memoryToken) return _memoryToken;
+
+  // Fallback: read from SecureStore (e.g., on app cold start)
   try {
-    return await SecureStore.getItemAsync(TOKEN_KEY);
+    const stored = await SecureStore.getItemAsync(TOKEN_KEY);
+    if (stored) {
+      _memoryToken = stored; // Sync memory cache
+    }
+    return stored;
   } catch {
     return null;
   }
 }
 
 export async function storeToken(token: string): Promise<void> {
+  // IMMEDIATELY set in-memory so subsequent requests can use it
+  _memoryToken = token;
+
+  // Persist to SecureStore in background (for app restarts)
   try {
     await SecureStore.setItemAsync(TOKEN_KEY, token);
   } catch (e) {
-    console.error("[Auth] Failed to store token:", e);
+    console.error("[Auth] Failed to persist token to SecureStore:", e);
+    // Token is still in memory — app will work for this session
   }
 }
 
 export async function removeToken(): Promise<void> {
+  _memoryToken = null;
   try {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
   } catch {
@@ -42,7 +62,8 @@ async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  const token = await getStoredToken();
+  // Use memory token first, then SecureStore as fallback
+  const token = _memoryToken || (await getStoredToken());
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -63,7 +84,7 @@ async function apiRequest<T>(
     });
 
     // Attempt to extract set-cookie (works on Android, usually blocked on iOS)
-    // This is a fallback — primary token capture is from response body in login()
+    // This is a secondary fallback — primary token capture is from response body in login()
     try {
       const setCookie = response.headers.get("set-cookie");
       if (setCookie) {
@@ -77,7 +98,6 @@ async function apiRequest<T>(
     }
 
     if (response.status === 401) {
-      // Don't remove token on 401 during login flow — only on explicit auth checks
       return { ok: false, error: "Unauthorized", status: 401 };
     }
 
@@ -180,7 +200,8 @@ export const apiClient = {
  * Login via local auth (email + password).
  * CRITICAL: The backend returns the JWT token in the response BODY (not just Set-Cookie)
  * because React Native on iOS cannot read Set-Cookie headers.
- * We MUST extract and store the token from the body before any subsequent API calls.
+ * We extract and store the token BOTH in memory AND SecureStore before returning.
+ * The in-memory token guarantees the immediate getMe() call will have auth.
  */
 export async function login(email: string, password: string, tenantId?: number) {
   const response = await trpcMutation<{
@@ -203,7 +224,8 @@ export async function login(email: string, password: string, tenantId?: number) 
   });
 
   // CRITICAL: Extract token from response body and persist it
-  // This is the PRIMARY mechanism for mobile auth (Set-Cookie is unreliable on iOS)
+  // storeToken() sets _memoryToken IMMEDIATELY (synchronous assignment)
+  // then persists to SecureStore asynchronously
   if (response.ok && response.data?.token) {
     await storeToken(response.data.token);
   }
