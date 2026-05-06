@@ -42,7 +42,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "CREW needs camera access to take photos and videos of job sites.",
         "NSPhotoLibraryUsageDescription": "CREW needs photo library access to upload existing photos and videos to projects.",
-        "NSMicrophoneUsageDescription": "CREW needs microphone access to record videos with audio."
+        "NSMicrophoneUsageDescription": "CREW needs microphone access to record videos with audio.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "plugins": [
