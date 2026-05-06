@@ -3,23 +3,34 @@ import * as SecureStore from "expo-secure-store";
 
 const TOKEN_KEY = "crew_auth_token";
 
-// --- In-Memory Token Cache ---
-// CRITICAL: iOS SecureStore has async latency. After storeToken(), a subsequent
-// getStoredToken() may return null if the keychain write hasn't flushed yet.
-// We keep an in-memory copy that is ALWAYS up-to-date and use it as primary source.
+// =============================================================================
+// IN-MEMORY TOKEN CACHE
+// =============================================================================
+// CRITICAL DESIGN DECISION:
+// iOS SecureStore (Keychain) has unpredictable async latency. After setItemAsync(),
+// a subsequent getItemAsync() can return null if the keychain write hasn't flushed.
+// 
+// SOLUTION: _memoryToken is the SINGLE SOURCE OF TRUTH for the current session.
+// SecureStore is ONLY used for persistence across app restarts (cold start recovery).
+// 
+// Flow:
+//   storeToken(t) → _memoryToken = t (instant) + SecureStore.setItemAsync(t) (background)
+//   getStoredToken() → returns _memoryToken || SecureStore.getItemAsync() (cold start only)
+//   removeToken() → _memoryToken = null + SecureStore.deleteItemAsync()
+// =============================================================================
 let _memoryToken: string | null = null;
 
 // --- Token Management ---
 
 export async function getStoredToken(): Promise<string | null> {
-  // Memory cache is the primary source (always in sync)
+  // In-memory is always authoritative during a session
   if (_memoryToken) return _memoryToken;
 
-  // Fallback: read from SecureStore (e.g., on app cold start)
+  // Cold start: read from SecureStore and hydrate memory
   try {
     const stored = await SecureStore.getItemAsync(TOKEN_KEY);
     if (stored) {
-      _memoryToken = stored; // Sync memory cache
+      _memoryToken = stored;
     }
     return stored;
   } catch {
@@ -28,15 +39,15 @@ export async function getStoredToken(): Promise<string | null> {
 }
 
 export async function storeToken(token: string): Promise<void> {
-  // IMMEDIATELY set in-memory so subsequent requests can use it
+  // SYNCHRONOUS assignment — immediately available for next request
   _memoryToken = token;
 
-  // Persist to SecureStore in background (for app restarts)
+  // Async persistence for cold start recovery
   try {
     await SecureStore.setItemAsync(TOKEN_KEY, token);
   } catch (e) {
-    console.error("[Auth] Failed to persist token to SecureStore:", e);
-    // Token is still in memory — app will work for this session
+    // Token is in memory — session will work. Log for diagnostics only.
+    console.warn("[Auth] SecureStore persist failed (session unaffected):", e);
   }
 }
 
@@ -45,7 +56,7 @@ export async function removeToken(): Promise<void> {
   try {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
   } catch {
-    // Ignore - token may not exist
+    // Ignore — token may not exist in SecureStore
   }
 }
 
@@ -62,7 +73,7 @@ async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  // Use memory token first, then SecureStore as fallback
+  // _memoryToken is checked first (zero-latency), SecureStore only on cold start
   const token = _memoryToken || (await getStoredToken());
 
   const headers: Record<string, string> = {
@@ -70,7 +81,7 @@ async function apiRequest<T>(
     ...(options.headers as Record<string, string>),
   };
 
-  // Send token as Cookie header — this is how the backend validates sessions
+  // Backend validates via Cookie header
   if (token) {
     headers["Cookie"] = `app_session_id=${token}`;
   }
@@ -79,12 +90,9 @@ async function apiRequest<T>(
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
-      // Do NOT use credentials: "include" on React Native — it causes issues
-      // We handle cookies manually via the Cookie header above
     });
 
-    // Attempt to extract set-cookie (works on Android, usually blocked on iOS)
-    // This is a secondary fallback — primary token capture is from response body in login()
+    // Secondary token capture from Set-Cookie (Android only — iOS blocks this)
     try {
       const setCookie = response.headers.get("set-cookie");
       if (setCookie) {
@@ -94,7 +102,7 @@ async function apiRequest<T>(
         }
       }
     } catch {
-      // Silently ignore — iOS blocks Set-Cookie header access
+      // Expected on iOS — silently ignore
     }
 
     if (response.status === 401) {
@@ -129,10 +137,6 @@ async function apiRequest<T>(
 
 // --- tRPC Client ---
 
-/**
- * Call a tRPC query (GET request)
- * Returns the unwrapped result data from the tRPC response envelope
- */
 export async function trpcQuery<T = any>(
   procedure: string,
   input?: unknown
@@ -145,17 +149,13 @@ export async function trpcQuery<T = any>(
     method: "GET",
   });
 
-  // Unwrap tRPC response envelope: { result: { data: { json: ... } } }
+  // Unwrap tRPC envelope: { result: { data: { json: ... } } }
   if (response.ok && response.data?.result?.data?.json !== undefined) {
     return { ...response, data: response.data.result.data.json };
   }
   return response as ApiResponse<T>;
 }
 
-/**
- * Call a tRPC mutation (POST request)
- * Returns the unwrapped result data from the tRPC response envelope
- */
 export async function trpcMutation<T = any>(
   procedure: string,
   input?: unknown
@@ -165,24 +165,19 @@ export async function trpcMutation<T = any>(
     body: JSON.stringify(input !== undefined ? { json: input } : {}),
   });
 
-  // Unwrap tRPC response envelope
+  // Unwrap tRPC envelope
   if (response.ok && response.data?.result?.data?.json !== undefined) {
     return { ...response, data: response.data.result.data.json };
   }
   return response as ApiResponse<T>;
 }
 
-// --- Convenience API Client (used by screens) ---
+// --- Convenience API Client ---
 
-/**
- * apiClient provides a simple interface for screens to call tRPC procedures.
- * Matches the pattern used throughout the app screens.
- */
 export const apiClient = {
   query: trpcQuery,
   mutation: trpcMutation,
 
-  // Shorthand for common patterns
   async get<T = any>(procedure: string, input?: unknown): Promise<T | null> {
     const res = await trpcQuery<T>(procedure, input);
     return res.ok ? (res.data ?? null) : null;
@@ -198,10 +193,12 @@ export const apiClient = {
 
 /**
  * Login via local auth (email + password).
- * CRITICAL: The backend returns the JWT token in the response BODY (not just Set-Cookie)
- * because React Native on iOS cannot read Set-Cookie headers.
- * We extract and store the token BOTH in memory AND SecureStore before returning.
- * The in-memory token guarantees the immediate getMe() call will have auth.
+ * 
+ * DEFINITIVE DESIGN:
+ * The backend returns { success, token, user } in the response body.
+ * storeToken() sets _memoryToken SYNCHRONOUSLY (instant) then persists async.
+ * The caller (authStore) uses response.data.user directly — NO getMe() needed.
+ * This guarantees login works on iOS regardless of SecureStore timing.
  */
 export async function login(email: string, password: string, tenantId?: number) {
   const response = await trpcMutation<{
@@ -209,7 +206,7 @@ export async function login(email: string, password: string, tenantId?: number) 
     mustChangePassword: boolean;
     isSalesperson: boolean;
     salespersonRank: string | null;
-    token: string; // JWT token returned in body for mobile apps
+    token: string;
     user: {
       id: number;
       name: string;
@@ -223,9 +220,7 @@ export async function login(email: string, password: string, tenantId?: number) 
     ...(tenantId ? { tenantId } : {}),
   });
 
-  // CRITICAL: Extract token from response body and persist it
-  // storeToken() sets _memoryToken IMMEDIATELY (synchronous assignment)
-  // then persists to SecureStore asynchronously
+  // Store token: _memoryToken set instantly, SecureStore persisted async
   if (response.ok && response.data?.token) {
     await storeToken(response.data.token);
   }
