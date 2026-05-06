@@ -12,7 +12,7 @@ import { useLanguageStore } from "@/store/languageStore";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 
-const APP_VERSION = "V. Teste 11";
+const APP_VERSION = "V. Teste 12";
 
 interface DashboardKPIs {
   employees: { total: number; active: number };
@@ -65,6 +65,7 @@ export default function DashboardScreen() {
   const [activeEntries, setActiveEntries] = useState<ActiveEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [todayScheduleCount, setTodayScheduleCount] = useState<number>(0);
 
   const fetchDashboard = useCallback(async () => {
     // Fire all requests independently — render as soon as the FIRST one resolves
@@ -107,6 +108,16 @@ export default function DashboardScreen() {
         setActiveEntries(mapped);
       }
     }).catch(() => {});
+
+    // Fetch today's schedule count
+    const todayStr = new Date().toISOString().split("T")[0];
+    apiClient.get<any[]>("scheduling.getByDateRange", { startDate: todayStr, endDate: todayStr })
+      .then((schedules) => {
+        if (schedules && Array.isArray(schedules)) {
+          setTodayScheduleCount(schedules.length);
+        }
+      })
+      .catch(() => {});
 
     // Wait for all to settle for refresh indicator
     await Promise.allSettled([statsPromise, kpiPromise, entriesPromise]);
@@ -231,8 +242,8 @@ export default function DashboardScreen() {
     },
     {
       label: "TODAY'S SCHEDULE",
-      value: "0",
-      subtitle: "jobs today",
+      value: String(todayScheduleCount),
+      subtitle: `job${todayScheduleCount !== 1 ? "s" : ""} today`,
       icon: "calendar" as const,
       color: "#14B8A6",
       borderColor: "#14B8A6",
