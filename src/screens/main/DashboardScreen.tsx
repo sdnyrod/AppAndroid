@@ -11,7 +11,35 @@ import { useAuthStore } from "@/store/authStore";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 
-interface DashboardStats {
+interface DashboardKPIs {
+  employees: { total: number; active: number };
+  projects: {
+    total: number;
+    active: number;
+    activeBudget: number;
+    readyForBilling: number;
+    readyForBillingBudget: number;
+    completed: number;
+    completedBudget: number;
+    paused: number;
+    pausedBudget: number;
+  };
+  hoursThisMonth: number;
+  payrollThisMonth: number;
+  payrollPeriodLabel: string;
+  pipeline: { total: number; approved: number; pending: number };
+  expensesThisMonth: number;
+  contractors: number;
+  inventory: {
+    totalValue: number;
+    totalItems: number;
+    uniqueMaterials: number;
+    lowStockAlerts: number;
+    recentEvents: number;
+  };
+}
+
+interface BasicStats {
   totalEmployees: number;
   activeProjects: number;
   clockedInNow: number;
@@ -28,19 +56,23 @@ interface ActiveEntry {
 export default function DashboardScreen() {
   const navigation = useNavigation<any>();
   const user = useAuthStore((s) => s.user);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
+  const [basicStats, setBasicStats] = useState<BasicStats | null>(null);
   const [activeEntries, setActiveEntries] = useState<ActiveEntry[]>([]);
-  const [todayHours, setTodayHours] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchDashboard = useCallback(async () => {
     try {
-      const [dashStats, entries] = await Promise.all([
-        apiClient.get<DashboardStats>("dashboard.getStats"),
+      const [kpiData, statsData, entries] = await Promise.all([
+        apiClient.get<DashboardKPIs>("reports.dashboardKPIs").catch(() => null),
+        apiClient.get<BasicStats>("dashboard.getStats").catch(() => null),
         apiClient.get<any[]>("time.getActiveEntries").catch(() => []),
       ]);
-      setStats(dashStats);
+
+      if (kpiData) setKpis(kpiData);
+      if (statsData) setBasicStats(statsData);
+
       if (entries && Array.isArray(entries)) {
         setActiveEntries(
           entries.map((entry: any) => ({
@@ -50,14 +82,6 @@ export default function DashboardScreen() {
             clockInTime: entry.clockIn || entry.clockInTime || "",
           }))
         );
-        // Calculate today's hours from active entries
-        let totalMinutes = 0;
-        entries.forEach((entry: any) => {
-          const clockIn = new Date(entry.clockIn || entry.clockInTime);
-          const now = new Date();
-          totalMinutes += (now.getTime() - clockIn.getTime()) / 60000;
-        });
-        setTodayHours(Math.round(totalMinutes / 60 * 10) / 10);
       }
     } catch (e) {
       // Silently handle
@@ -85,16 +109,97 @@ export default function DashboardScreen() {
     } catch { return ""; }
   };
 
-  // Stats cards data
+  const formatCurrency = (value: number) => {
+    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `$${Math.round(value).toLocaleString()}`;
+    return `$${value.toFixed(0)}`;
+  };
+
+  // Get today's day name
+  const today = new Date();
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const dateString = `${dayNames[today.getDay()]}, ${monthNames[today.getMonth()]} ${today.getDate()}`;
+
+  // Calculate today's hours from active entries
+  let todayHours = 0;
+  if (activeEntries.length > 0) {
+    activeEntries.forEach((entry) => {
+      const clockIn = new Date(entry.clockInTime);
+      const now = new Date();
+      todayHours += (now.getTime() - clockIn.getTime()) / 3600000;
+    });
+  }
+  // Use KPI hours if available (more accurate - includes completed entries)
+  const displayHours = kpis?.hoursThisMonth || Math.round(todayHours * 10) / 10;
+
+  // Stats cards matching Android V10 exactly
   const statCards = [
-    { label: "Active Workers", value: stats?.clockedInNow || 0, icon: "people", color: "#3B82F6", borderColor: "#1D4ED8" },
-    { label: "Clock In LIVE", value: activeEntries.length, icon: "radio", color: "#10B981", borderColor: "#059669" },
-    { label: "Today's Hours", value: `${todayHours}h`, icon: "time", color: "#8B5CF6", borderColor: "#7C3AED" },
-    { label: "Payroll", value: stats?.totalEmployees || 0, icon: "cash", color: "#F59E0B", borderColor: "#D97706" },
-    { label: "Active Projects", value: stats?.activeProjects || 0, icon: "folder-open", color: "#06B6D4", borderColor: "#0891B2" },
-    { label: "Pipeline", value: stats?.totalProjects || 0, icon: "layers", color: "#EC4899", borderColor: "#DB2777" },
-    { label: "Today's Schedule", value: activeEntries.length, icon: "calendar", color: "#14B8A6", borderColor: "#0D9488" },
-    { label: "Contractors", value: "\u2014", icon: "construct", color: "#F97316", borderColor: "#EA580C" },
+    {
+      label: "ACTIVE WORKERS",
+      value: String(basicStats?.totalEmployees || kpis?.employees?.total || 0),
+      subtitle: `${basicStats?.totalEmployees || kpis?.employees?.total || 0} total`,
+      icon: "people",
+      color: "#3B82F6",
+      borderColor: "#3B82F6",
+    },
+    {
+      label: "CLOCK IN",
+      value: String(basicStats?.clockedInNow || 0),
+      subtitle: "workers active",
+      icon: "pulse",
+      color: "#10B981",
+      borderColor: "#10B981",
+      live: true,
+    },
+    {
+      label: "TODAY'S HOURS",
+      value: `${displayHours}`,
+      subtitle: "Total",
+      icon: "time",
+      color: "#6366F1",
+      borderColor: "#6366F1",
+    },
+    {
+      label: "PAYROLL",
+      value: formatCurrency(kpis?.payrollThisMonth || 0),
+      subtitle: "This Month",
+      icon: "cash",
+      color: "#EF4444",
+      borderColor: "#EF4444",
+    },
+    {
+      label: "ACTIVE PROJECTS",
+      value: String(kpis?.projects?.active || basicStats?.activeProjects || 0),
+      subtitle: formatCurrency(kpis?.projects?.activeBudget || 0),
+      icon: "folder-open",
+      color: "#F59E0B",
+      borderColor: "#F59E0B",
+    },
+    {
+      label: "PIPELINE",
+      value: formatCurrency(kpis?.pipeline?.total || 0),
+      subtitle: `${kpis?.pipeline?.approved || 0} approved · ${kpis?.pipeline?.pending || 0} pending`,
+      icon: "layers",
+      color: "#A855F7",
+      borderColor: "#A855F7",
+    },
+    {
+      label: "TODAY'S SCHEDULE",
+      value: "0",
+      subtitle: "jobs today",
+      icon: "calendar",
+      color: "#14B8A6",
+      borderColor: "#14B8A6",
+    },
+    {
+      label: "CONTRACTORS",
+      value: String(kpis?.contractors || 0),
+      subtitle: "Active",
+      icon: "construct",
+      color: "#F97316",
+      borderColor: "#F97316",
+    },
   ];
 
   // Quick Actions
@@ -107,9 +212,9 @@ export default function DashboardScreen() {
 
   // Project Status
   const projectStatus = [
-    { label: "Active", value: stats?.activeProjects || 0, color: "#10B981" },
-    { label: "Billing", value: 0, color: "#F59E0B" },
-    { label: "Completed", value: (stats?.totalProjects || 0) - (stats?.activeProjects || 0), color: "#3B82F6" },
+    { label: "Active", value: kpis?.projects?.active || basicStats?.activeProjects || 0, color: "#10B981" },
+    { label: "Billing", value: kpis?.projects?.readyForBilling || 0, color: "#F59E0B" },
+    { label: "Completed", value: kpis?.projects?.completed || 0, color: "#3B82F6" },
   ];
 
   return (
@@ -117,24 +222,33 @@ export default function DashboardScreen() {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" colors={["#3B82F6"]} />}
     >
-      {/* Version Label */}
-      <Text style={styles.testVersionLabel}>V. Teste 10</Text>
-
-      {/* Welcome */}
+      {/* Welcome Header */}
       <View style={styles.welcomeSection}>
-        <Text style={styles.welcomeText}>Welcome back,</Text>
-        <Text style={styles.userName}>{user?.name || "User"}</Text>
+        <Text style={styles.crewLabel}>CREW</Text>
+        <View style={styles.welcomeRow}>
+          <Text style={styles.welcomeText}>Welcome back, </Text>
+          <Text style={styles.userNameHighlight}>{user?.name || "User"}</Text>
+          <Text style={styles.versionLabel}> V. Teste 10</Text>
+        </View>
+        <Text style={styles.dateText}>{dateString}</Text>
       </View>
 
       {/* 8 Stat Cards - 2x4 grid */}
       <View style={styles.statsGrid}>
         {statCards.map((card, idx) => (
-          <View key={idx} style={[styles.statCard, { borderLeftColor: card.borderColor, borderLeftWidth: 3 }]}>
-            <View style={styles.statCardHeader}>
-              <Ionicons name={card.icon as any} size={18} color={card.color} />
-              <Text style={styles.statValue}>{card.value}</Text>
+          <View key={idx} style={[styles.statCard, { borderColor: card.borderColor }]}>
+            <View style={styles.statCardTop}>
+              <Ionicons name={card.icon as any} size={16} color={card.color} />
+              <Text style={[styles.statCardLabel, { color: card.color }]}>{card.label}</Text>
+              {card.live && (
+                <View style={styles.liveBadge}>
+                  <View style={styles.liveDotSmall} />
+                  <Text style={styles.liveText}>LIVE</Text>
+                </View>
+              )}
             </View>
-            <Text style={styles.statLabel}>{card.label}</Text>
+            <Text style={styles.statCardValue}>{card.value}</Text>
+            <Text style={[styles.statCardSubtitle, { color: card.color }]}>{card.subtitle}</Text>
           </View>
         ))}
       </View>
@@ -217,24 +331,32 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0A1628" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0A1628" },
-  testVersionLabel: { color: "#EF4444", fontSize: 11, fontWeight: "700", textAlign: "center", paddingTop: 8, letterSpacing: 1 },
-  welcomeSection: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
-  welcomeText: { color: "#8892A4", fontSize: 14 },
-  userName: { color: "#FFFFFF", fontSize: 22, fontWeight: "700", marginTop: 2 },
 
-  // Stats Grid
+  // Welcome
+  welcomeSection: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
+  crewLabel: { color: "#3B82F6", fontSize: 11, fontWeight: "700", letterSpacing: 1.5, marginBottom: 4 },
+  welcomeRow: { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap" },
+  welcomeText: { color: "#FFFFFF", fontSize: 22, fontWeight: "700" },
+  userNameHighlight: { color: "#3B82F6", fontSize: 22, fontWeight: "700" },
+  versionLabel: { color: "#EF4444", fontSize: 12, fontWeight: "700", marginLeft: 8 },
+  dateText: { color: "#8892A4", fontSize: 13, marginTop: 4 },
+
+  // Stats Grid - matching Android V10 with colored borders
   statsGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, gap: 10, marginBottom: 20 },
   statCard: {
     backgroundColor: "#0F1D32",
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 14,
     width: CARD_WIDTH,
-    borderWidth: 1,
-    borderColor: "#1A2A40",
+    borderWidth: 1.5,
   },
-  statCardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  statValue: { color: "#FFFFFF", fontSize: 20, fontWeight: "700" },
-  statLabel: { color: "#8892A4", fontSize: 11, marginTop: 6 },
+  statCardTop: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
+  statCardLabel: { fontSize: 10, fontWeight: "700", letterSpacing: 0.5, flex: 1 },
+  statCardValue: { color: "#FFFFFF", fontSize: 28, fontWeight: "800", marginBottom: 4 },
+  statCardSubtitle: { fontSize: 11, fontWeight: "500" },
+  liveBadge: { flexDirection: "row", alignItems: "center", gap: 3 },
+  liveDotSmall: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#10B981" },
+  liveText: { color: "#10B981", fontSize: 9, fontWeight: "700" },
 
   // Quick Actions
   section: { paddingHorizontal: 16, marginBottom: 20 },

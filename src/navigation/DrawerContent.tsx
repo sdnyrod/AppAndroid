@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   View,
   Text,
@@ -16,8 +16,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function DrawerContent({ navigation }: DrawerContentComponentProps) {
   const { user, logout } = useAuthStore();
-  const { has, hasAny, isOwner, role } = usePermissionsStore();
+  const { has, hasAny, isOwner, role, loaded, fetchPermissions } = usePermissionsStore();
   const insets = useSafeAreaInsets();
+
+  // Ensure permissions are loaded when drawer opens
+  useEffect(() => {
+    if (!loaded && user) {
+      fetchPermissions();
+    }
+  }, [loaded, user]);
 
   const menuGroups = getFilteredMenuGroups(has, hasAny);
 
@@ -29,6 +36,9 @@ export default function DrawerContent({ navigation }: DrawerContentComponentProp
   const handleLogout = async () => {
     await logout();
   };
+
+  // Display role correctly
+  const displayRole = isOwner ? "Owner" : role.charAt(0).toUpperCase() + role.slice(1);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -52,10 +62,14 @@ export default function DrawerContent({ navigation }: DrawerContentComponentProp
             <Text style={styles.userName} numberOfLines={1}>
               {user?.name || "User"}
             </Text>
-            <Text style={styles.userRole}>
-              {isOwner ? "Owner" : role.charAt(0).toUpperCase() + role.slice(1)}
-            </Text>
+            <Text style={styles.userRole}>{displayRole}</Text>
           </View>
+        </View>
+        {/* Language Flags */}
+        <View style={styles.flagsRow}>
+          <Text style={styles.flag}>🇺🇸</Text>
+          <Text style={styles.flag}>🇧🇷</Text>
+          <Text style={styles.flag}>🇪🇸</Text>
         </View>
       </View>
 
@@ -63,10 +77,7 @@ export default function DrawerContent({ navigation }: DrawerContentComponentProp
       <ScrollView style={styles.menuScroll} showsVerticalScrollIndicator={false}>
         {menuGroups.map((group) => (
           <View key={group.id} style={styles.menuGroup}>
-            {/* Group header - only show if more than 1 group */}
-            {menuGroups.length > 1 && (
-              <Text style={styles.groupLabel}>{group.label}</Text>
-            )}
+            <Text style={styles.groupLabel}>{group.label.toUpperCase()}</Text>
             {group.items.map((item) => (
               <TouchableOpacity
                 key={item.id}
@@ -154,6 +165,21 @@ const styles = StyleSheet.create({
     color: "#8892A4",
     fontSize: 12,
     marginTop: 2,
+  },
+  flagsRow: {
+    flexDirection: "row",
+    marginTop: 12,
+    gap: 8,
+  },
+  flag: {
+    fontSize: 22,
+    backgroundColor: "#1A2A40",
+    borderRadius: 14,
+    width: 34,
+    height: 34,
+    textAlign: "center",
+    lineHeight: 34,
+    overflow: "hidden",
   },
   menuScroll: {
     flex: 1,

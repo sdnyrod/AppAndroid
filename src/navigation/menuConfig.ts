@@ -33,19 +33,27 @@ export const MENU_GROUPS: MenuGroup[] = [
   // ── 1. Field Operations ──
   {
     id: "fieldops",
-    label: "Operations",
+    label: "Field Operations",
     icon: "time-outline",
     requiredPermission: ["time.clock_in_self", "time.view_all_entries", "time.view_active_workers"],
     items: [
       { id: "time-tracking", label: "Time Tracking", icon: "time-outline", screen: "TimeTracking", requiredPermission: ["time.clock_in_self", "time.view_all_entries"] },
       { id: "my-hours", label: "My Hours", icon: "clipboard-outline", screen: "MyHours", requiredPermission: "time.clock_in_self" },
+      { id: "active-workers", label: "Active Workers", icon: "people-outline", screen: "ActiveWorkers", requiredPermission: "time.view_active_workers" },
+      { id: "live-map", label: "Live Map", icon: "map-outline", screen: "LiveMap", requiredPermission: "location.view_live_map" },
       { id: "daily-logs", label: "Daily Logs", icon: "mic-outline", screen: "DailyLogs", requiredPermission: ["dailylogs.view_own", "dailylogs.view_all"] },
       { id: "field-media", label: "Field Media", icon: "camera-outline", screen: "FieldMedia", requiredPermission: ["fieldmedia.view_own", "fieldmedia.view_all"] },
-      { id: "active-workers", label: "Active Workers", icon: "people-outline", screen: "ActiveWorkers", requiredPermission: "time.view_active_workers" },
+    ],
+  },
+  // ── 2. Projects ──
+  {
+    id: "projects",
+    label: "Projects",
+    icon: "folder-outline",
+    requiredPermission: ["projects.view_all", "projects.view_assigned"],
+    items: [
       { id: "projects", label: "Projects", icon: "folder-outline", screen: "Projects", requiredPermission: ["projects.view_all", "projects.view_assigned"] },
-      { id: "live-map", label: "Live Map", icon: "map-outline", screen: "LiveMap", requiredPermission: "location.view_live_map" },
-      { id: "job-schedule", label: "Job Schedule", icon: "calendar-outline", screen: "JobSchedule", requiredPermission: ["scheduling.view_all", "scheduling.view_assigned"] },
-      { id: "contractors", label: "Contractors Hub", icon: "handshake-outline", screen: "Contractors", requiredPermission: "contractors.view_list" },
+      { id: "dispatch", label: "Dispatch", icon: "bus-outline", screen: "Dispatch", requiredPermission: "time.clock_in_others" },
     ],
   },
   // ── 2. Team & Payroll ──
