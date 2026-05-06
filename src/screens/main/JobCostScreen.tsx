@@ -5,7 +5,13 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { apiClient } from "@/services/api";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+
+type JobCostRouteParams = {
+  JobCost: {
+    projectId?: number;
+  };
+};
 
 interface Project {
   id: number;
@@ -98,8 +104,10 @@ function normalizeApiResponse(raw: Record<string, any>): NormalizedCostData {
 
 export default function JobCostScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<JobCostRouteParams, "JobCost">>();
+  const initialProjectId = route.params?.projectId ?? null;
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(initialProjectId);
   const [costData, setCostData] = useState<NormalizedCostData | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingCost, setLoadingCost] = useState(false);
@@ -111,8 +119,11 @@ export default function JobCostScreen() {
       // Show ALL projects (active + completed) so user can check cost for any
       const allProjects = (data || []).filter((p) => p.status === "active" || p.status === "completed");
       setProjects(allProjects);
-      if (allProjects.length > 0 && !selectedProjectId) {
+      if (allProjects.length > 0 && !selectedProjectId && !initialProjectId) {
         setSelectedProjectId(allProjects[0].id);
+      } else if (initialProjectId && !selectedProjectId) {
+        // Ensure the initial project from navigation params is selected
+        setSelectedProjectId(initialProjectId);
       }
     } catch {} finally {
       setLoading(false);
