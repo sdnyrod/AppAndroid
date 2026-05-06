@@ -37,17 +37,17 @@ export default function CommissionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [revenue, setRevenue] = useState<RevenueData | null>(null);
 
-  const isDirector = user?.role === "director";
+  const isDirector = user?.isSuperOwner || user?.role === "owner";
 
   const loadCommissions = useCallback(async () => {
     try {
-      const endpoint = isDirector
-        ? "/api/trpc/director.getDirectorRevenue"
-        : "/api/trpc/salesperson.getSalespersonRevenue";
+      const procedure = isDirector
+        ? "director.getDirectorRevenue"
+        : "salesperson.getSalespersonRevenue";
 
-      const res = await apiClient(endpoint, "GET");
-      if (res?.result?.data) {
-        setRevenue(res.result.data);
+      const res = await apiClient.get<RevenueData>(procedure);
+      if (res) {
+        setRevenue(res);
       }
     } catch (err) {
       console.error("Failed to load commissions:", err);

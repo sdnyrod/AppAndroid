@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { trpcQuery } from "@/services/api";
 
+interface PermissionsResponse {
+  role: string;
+  customRoleId: number | null;
+  permissions: string[];
+}
+
 interface PermissionsStore {
   permissions: Set<string>;
   role: string;
@@ -24,11 +30,7 @@ export const usePermissionsStore = create<PermissionsStore>((set, get) => ({
   fetchPermissions: async () => {
     set({ loading: true });
     try {
-      const response = await trpcQuery<{
-        role: string;
-        customRoleId: number | null;
-        permissions: string[];
-      }>("roles.myPermissions");
+      const response = await trpcQuery<PermissionsResponse>("roles.myPermissions");
 
       if (response.ok && response.data) {
         const { role, permissions } = response.data;

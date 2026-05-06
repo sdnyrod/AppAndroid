@@ -38,17 +38,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   pendingPassword: null,
 
   /**
-   * DEFINITIVE LOGIN FLOW:
+   * LOGIN FLOW:
    * 1. Call auth.localLogin → backend returns { success, token, user }
-   * 2. storeToken(token) → sets in-memory + persists to SecureStore
-   * 3. Use the USER from the login response DIRECTLY — NO getMe() call needed
-   * 4. Background: fetch full profile via getMe() to enrich user data (non-blocking)
-   *
-   * This eliminates ALL race conditions because:
-   * - We never depend on SecureStore read-after-write timing
-   * - The user object comes from the same HTTP response as the token
-   * - The app becomes authenticated immediately with basic user data
-   * - Full profile enrichment happens in background after auth is established
+   * 2. api.ts login() stores token in AsyncStorage + SecureStore
+   * 3. Use the user from the login response DIRECTLY — no getMe() call needed
+   * 4. Background: enrich user data with full profile (non-blocking)
    */
   login: async (email: string, password: string) => {
     set({ isLoading: true, error: null, mustChangePassword: false });
@@ -75,18 +69,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           pendingPassword: password,
           error: null,
         });
-        return false; // Don't complete login yet
+        return false;
       }
 
-      // DEFINITIVE: Use user data from login response directly
-      // No getMe() call needed — token is already in memory from login()
+      // Use user data from login response directly
       const loginUser = result.user;
       const user: User = {
         id: loginUser.id,
         openId: "",
         email: loginUser.email || email,
         name: loginUser.name || "",
-        role: loginUser.role || "employee",
+        role: (loginUser.role as User["role"]) || "employee",
         tenantId: null,
         tenantName: null,
         avatarUrl: null,
@@ -104,28 +97,27 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ user, isAuthenticated: true, isLoading: false, error: null });
 
       // Background: enrich user data with full profile (non-blocking)
-      // This runs AFTER the user is already authenticated and on the dashboard
       setTimeout(async () => {
         try {
           const meResponse = await getMe();
           if (meResponse.ok && meResponse.data) {
-            const fullData = meResponse.data as any;
+            const fullData = meResponse.data as Record<string, unknown>;
             const enrichedUser: User = {
-              id: fullData.id,
-              openId: fullData.openId || "",
-              email: fullData.email || email,
-              name: fullData.name || loginUser.name || "",
-              role: fullData.role || loginUser.role || "employee",
-              tenantId: fullData.tenantId || null,
-              tenantName: fullData.tenantName || null,
-              avatarUrl: fullData.avatarUrl || null,
-              phone: fullData.phone || null,
-              language: fullData.preferredLanguage || "en",
-              createdAt: fullData.createdAt || new Date().toISOString(),
-              isSuperOwner: fullData.isSuperOwner || false,
-              isSalesperson: fullData.isSalesperson || result.isSalesperson || false,
-              salespersonRank: fullData.salespersonStatus || result.salespersonRank || null,
-              superAdminRole: fullData.superAdminRole || null,
+              id: (fullData.id as number) || loginUser.id,
+              openId: (fullData.openId as string) || "",
+              email: (fullData.email as string) || email,
+              name: (fullData.name as string) || loginUser.name || "",
+              role: ((fullData.role as string) || loginUser.role || "employee") as User["role"],
+              tenantId: (fullData.tenantId as number | null) || null,
+              tenantName: (fullData.tenantName as string | null) || null,
+              avatarUrl: (fullData.avatarUrl as string | null) || null,
+              phone: (fullData.phone as string | null) || null,
+              language: (fullData.preferredLanguage as string) || "en",
+              createdAt: (fullData.createdAt as string) || new Date().toISOString(),
+              isSuperOwner: (fullData.isSuperOwner as boolean) || false,
+              isSalesperson: (fullData.isSalesperson as boolean) || result.isSalesperson || false,
+              salespersonRank: (fullData.salespersonStatus as string | null) || result.salespersonRank || null,
+              superAdminRole: (fullData.superAdminRole as string | null) || null,
             };
             await AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify(enrichedUser));
             set({ user: enrichedUser });
@@ -136,8 +128,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       }, 500);
 
       return true;
-    } catch (e: any) {
-      set({ isLoading: false, error: e?.message || "Login failed" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Login failed";
+      set({ isLoading: false, error: message });
       return false;
     }
   },
@@ -150,12 +143,20 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
     await removeToken();
     await AsyncStorage.removeItem(USER_CACHE_KEY);
-    set({ user: null, isAuthenticated: false, isLoading: false, error: null, mustChangePassword: false, pendingEmail: null, pendingPassword: null });
+    set({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      mustChangePassword: false,
+      pendingEmail: null,
+      pendingPassword: null,
+    });
   },
 
   /**
    * checkAuth: Called on app cold start.
-   * Reads token from SecureStore (persisted from previous session).
+   * Reads token from persistent storage.
    * If token exists, loads cached user immediately (offline-first),
    * then validates with server in background.
    */
@@ -175,29 +176,31 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         const user = JSON.parse(cachedUser) as User;
         set({ user, isAuthenticated: true, isLoading: false });
       }
-    } catch {}
+    } catch {
+      // If cache read fails, continue to server validation
+    }
 
-    // Then validate token with server
+    // Validate token with server
     try {
       const response = await getMe();
       if (response.ok && response.data) {
-        const userData = response.data as any;
+        const userData = response.data as Record<string, unknown>;
         const user: User = {
-          id: userData.id,
-          openId: userData.openId || "",
-          email: userData.email || "",
-          name: userData.name || "",
-          role: userData.role || "employee",
-          tenantId: userData.tenantId || null,
-          tenantName: userData.tenantName || null,
-          avatarUrl: userData.avatarUrl || null,
-          phone: userData.phone || null,
-          language: userData.preferredLanguage || "en",
-          createdAt: userData.createdAt || new Date().toISOString(),
-          isSuperOwner: userData.isSuperOwner || false,
-          isSalesperson: userData.isSalesperson || false,
-          salespersonRank: userData.salespersonStatus || null,
-          superAdminRole: userData.superAdminRole || null,
+          id: (userData.id as number) || 0,
+          openId: (userData.openId as string) || "",
+          email: (userData.email as string) || "",
+          name: (userData.name as string) || "",
+          role: ((userData.role as string) || "employee") as User["role"],
+          tenantId: (userData.tenantId as number | null) || null,
+          tenantName: (userData.tenantName as string | null) || null,
+          avatarUrl: (userData.avatarUrl as string | null) || null,
+          phone: (userData.phone as string | null) || null,
+          language: (userData.preferredLanguage as string) || "en",
+          createdAt: (userData.createdAt as string) || new Date().toISOString(),
+          isSuperOwner: (userData.isSuperOwner as boolean) || false,
+          isSalesperson: (userData.isSalesperson as boolean) || false,
+          salespersonRank: (userData.salespersonStatus as string | null) || null,
+          superAdminRole: (userData.superAdminRole as string | null) || null,
         };
         await AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
         set({ user, isAuthenticated: true, isLoading: false });
@@ -216,5 +219,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
-  clearMustChangePassword: () => set({ mustChangePassword: false, pendingEmail: null, pendingPassword: null }),
+  clearMustChangePassword: () => set({
+    mustChangePassword: false,
+    pendingEmail: null,
+    pendingPassword: null,
+  }),
 }));

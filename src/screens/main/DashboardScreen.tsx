@@ -7,9 +7,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { apiClient } from "@/services/api";
 import { useAuthStore } from "@/store/authStore";
+import { useLanguageStore } from "@/store/languageStore";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
+
+const APP_VERSION = "V. Teste 11";
 
 interface DashboardKPIs {
   employees: { total: number; active: number };
@@ -56,58 +59,59 @@ interface ActiveEntry {
 export default function DashboardScreen() {
   const navigation = useNavigation<any>();
   const user = useAuthStore((s) => s.user);
+  const labels = useLanguageStore((s) => s.labels);
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
   const [basicStats, setBasicStats] = useState<BasicStats | null>(null);
   const [activeEntries, setActiveEntries] = useState<ActiveEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchDashboard = useCallback(async (retryCount = 0) => {
+  const fetchDashboard = useCallback(async () => {
     try {
       const [kpiData, statsData, entries] = await Promise.all([
         apiClient.get<DashboardKPIs>("reports.dashboardKPIs").catch(() => null),
         apiClient.get<BasicStats>("dashboard.getStats").catch(() => null),
-        apiClient.get<any[]>("time.getActiveEntries").catch(() => []),
+        apiClient.get<ActiveEntry[]>("time.getActiveEntries").catch(() => []),
       ]);
-
-      // If ALL data is null and we haven't retried yet, the token might not be ready.
-      // Wait and retry up to 3 times with increasing delay.
-      if (!kpiData && !statsData && retryCount < 3) {
-        const delay = (retryCount + 1) * 1000; // 1s, 2s, 3s
-        setTimeout(() => fetchDashboard(retryCount + 1), delay);
-        return; // Don't set loading=false yet — keep spinner
-      }
 
       if (kpiData) setKpis(kpiData);
       if (statsData) setBasicStats(statsData);
 
       if (entries && Array.isArray(entries)) {
-        setActiveEntries(
-          entries.map((entry: any) => ({
-            id: entry.id,
-            employeeName: entry.user?.name || entry.userName || entry.employeeName || "Worker",
-            projectName: entry.project?.name || entry.projectName || "No project",
-            clockInTime: entry.clockIn || entry.clockInTime || "",
-          }))
-        );
+        const mapped: ActiveEntry[] = (entries as unknown as Array<Record<string, any>>).map((entry) => ({
+          id: entry.id || 0,
+          employeeName:
+            entry.user?.name ||
+            entry.userName ||
+            entry.employeeName ||
+            "Worker",
+          projectName:
+            entry.project?.name ||
+            entry.projectName ||
+            "No project",
+          clockInTime:
+            entry.clockIn ||
+            entry.clockInTime ||
+            "",
+        }));
+        setActiveEntries(mapped);
       }
-
-      setLoading(false);
-      setRefreshing(false);
-    } catch (e) {
-      // If fetch threw and we can retry, do so
-      if (retryCount < 3) {
-        const delay = (retryCount + 1) * 1000;
-        setTimeout(() => fetchDashboard(retryCount + 1), delay);
-        return;
-      }
+    } catch {
+      // Network error — data stays at initial state (zeros)
+    } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
-  const onRefresh = () => { setRefreshing(true); fetchDashboard(); };
+  useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchDashboard();
+  };
 
   if (loading) {
     return (
@@ -117,20 +121,22 @@ export default function DashboardScreen() {
     );
   }
 
-  const formatTime = (isoString: string) => {
+  const formatTime = (isoString: string): string => {
     if (!isoString) return "";
     try {
       return new Date(isoString).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    } catch { return ""; }
+    } catch {
+      return "";
+    }
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number): string => {
     if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `$${Math.round(value).toLocaleString()}`;
     return `$${value.toFixed(0)}`;
   };
 
-  // Get today's day name
+  // Date display
   const today = new Date();
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -140,12 +146,16 @@ export default function DashboardScreen() {
   let todayHours = 0;
   if (activeEntries.length > 0) {
     activeEntries.forEach((entry) => {
-      const clockIn = new Date(entry.clockInTime);
-      const now = new Date();
-      todayHours += (now.getTime() - clockIn.getTime()) / 3600000;
+      if (entry.clockInTime) {
+        const clockIn = new Date(entry.clockInTime);
+        const now = new Date();
+        const diff = (now.getTime() - clockIn.getTime()) / 3600000;
+        if (diff > 0 && diff < 24) {
+          todayHours += diff;
+        }
+      }
     });
   }
-  // Use KPI hours if available (more accurate - includes completed entries)
   const displayHours = kpis?.hoursThisMonth || Math.round(todayHours * 10) / 10;
 
   // Stats cards matching Android V10 exactly
@@ -154,16 +164,17 @@ export default function DashboardScreen() {
       label: "ACTIVE WORKERS",
       value: String(basicStats?.totalEmployees || kpis?.employees?.total || 0),
       subtitle: `${basicStats?.totalEmployees || kpis?.employees?.total || 0} total`,
-      icon: "people",
+      icon: "people" as const,
       color: "#3B82F6",
       borderColor: "#3B82F6",
       screen: "ActiveWorkers",
+      live: false,
     },
     {
       label: "CLOCK IN",
       value: String(basicStats?.clockedInNow || 0),
       subtitle: "workers active",
-      icon: "pulse",
+      icon: "pulse" as const,
       color: "#10B981",
       borderColor: "#10B981",
       live: true,
@@ -173,71 +184,77 @@ export default function DashboardScreen() {
       label: "TODAY'S HOURS",
       value: `${displayHours}`,
       subtitle: "Total",
-      icon: "time",
+      icon: "time" as const,
       color: "#6366F1",
       borderColor: "#6366F1",
       screen: "TimeTracking",
+      live: false,
     },
     {
       label: "PAYROLL",
       value: formatCurrency(kpis?.payrollThisMonth || 0),
       subtitle: "This Month",
-      icon: "cash",
+      icon: "cash" as const,
       color: "#EF4444",
       borderColor: "#EF4444",
       screen: "Payroll",
+      live: false,
     },
     {
       label: "ACTIVE PROJECTS",
       value: String(kpis?.projects?.active || basicStats?.activeProjects || 0),
       subtitle: formatCurrency(kpis?.projects?.activeBudget || 0),
-      icon: "folder-open",
+      icon: "folder-open" as const,
       color: "#F59E0B",
       borderColor: "#F59E0B",
       screen: "Projects",
+      live: false,
     },
     {
       label: "PIPELINE",
       value: formatCurrency(kpis?.pipeline?.total || 0),
       subtitle: `${kpis?.pipeline?.approved || 0} approved · ${kpis?.pipeline?.pending || 0} pending`,
-      icon: "layers",
+      icon: "layers" as const,
       color: "#A855F7",
       borderColor: "#A855F7",
       screen: "Projects",
+      live: false,
     },
     {
       label: "TODAY'S SCHEDULE",
       value: "0",
       subtitle: "jobs today",
-      icon: "calendar",
+      icon: "calendar" as const,
       color: "#14B8A6",
       borderColor: "#14B8A6",
       screen: "JobSchedule",
+      live: false,
     },
     {
       label: "CONTRACTORS",
       value: String(kpis?.contractors || 0),
       subtitle: "Active",
-      icon: "construct",
+      icon: "construct" as const,
       color: "#F97316",
       borderColor: "#F97316",
       screen: "ActiveWorkers",
+      live: false,
     },
   ];
 
   // Quick Actions
   const quickActions = [
-    { label: "Clock In", icon: "time-outline", screen: "TimeTracking", color: "#10B981" },
-    { label: "Projects", icon: "folder-outline", screen: "Projects", color: "#3B82F6" },
-    { label: "Live Map", icon: "map-outline", screen: "LiveMap", color: "#8B5CF6" },
-    { label: "Estimates", icon: "calculator-outline", screen: "Estimates", color: "#F59E0B" },
+    { label: "Clock In", icon: "time-outline" as const, screen: "TimeTracking", color: "#10B981" },
+    { label: labels.projects, icon: "folder-outline" as const, screen: "Projects", color: "#3B82F6" },
+    { label: labels.liveMap, icon: "map-outline" as const, screen: "LiveMap", color: "#8B5CF6" },
+    { label: labels.estimates, icon: "calculator-outline" as const, screen: "Estimates", color: "#F59E0B" },
   ];
 
   // Project Status
   const projectStatus = [
-    { label: "Active", value: kpis?.projects?.active || basicStats?.activeProjects || 0, color: "#10B981" },
+    { label: labels.active, value: kpis?.projects?.active || basicStats?.activeProjects || 0, color: "#10B981" },
     { label: "Billing", value: kpis?.projects?.readyForBilling || 0, color: "#F59E0B" },
-    { label: "Completed", value: kpis?.projects?.completed || 0, color: "#3B82F6" },
+    { label: labels.completed, value: kpis?.projects?.completed || 0, color: "#3B82F6" },
   ];
 
   return (
@@ -249,9 +266,9 @@ export default function DashboardScreen() {
       <View style={styles.welcomeSection}>
         <Text style={styles.crewLabel}>CREW</Text>
         <View style={styles.welcomeRow}>
-          <Text style={styles.welcomeText}>Welcome back, </Text>
+          <Text style={styles.welcomeText}>{labels.welcomeBack}</Text>
           <Text style={styles.userNameHighlight}>{user?.name || "User"}</Text>
-          <Text style={styles.versionLabel}> V. Teste 10</Text>
+          <Text style={styles.versionLabel}> {APP_VERSION}</Text>
         </View>
         <Text style={styles.dateText}>{dateString}</Text>
       </View>
@@ -262,11 +279,11 @@ export default function DashboardScreen() {
           <TouchableOpacity
             key={idx}
             style={[styles.statCard, { borderColor: card.borderColor }]}
-            onPress={() => card.screen && navigation.navigate(card.screen)}
+            onPress={() => navigation.navigate(card.screen)}
             activeOpacity={0.7}
           >
             <View style={styles.statCardTop}>
-              <Ionicons name={card.icon as any} size={16} color={card.color} />
+              <Ionicons name={card.icon} size={16} color={card.color} />
               <Text style={[styles.statCardLabel, { color: card.color }]}>{card.label}</Text>
               {card.live && (
                 <View style={styles.liveBadge}>
@@ -283,7 +300,7 @@ export default function DashboardScreen() {
 
       {/* Quick Actions */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <Text style={styles.sectionTitle}>{labels.quickActions}</Text>
         <View style={styles.quickActionsRow}>
           {quickActions.map((action, idx) => (
             <TouchableOpacity
@@ -292,7 +309,7 @@ export default function DashboardScreen() {
               onPress={() => navigation.navigate(action.screen)}
             >
               <View style={[styles.quickActionIcon, { backgroundColor: action.color + "20" }]}>
-                <Ionicons name={action.icon as any} size={22} color={action.color} />
+                <Ionicons name={action.icon} size={22} color={action.color} />
               </View>
               <Text style={styles.quickActionLabel}>{action.label}</Text>
             </TouchableOpacity>
@@ -302,11 +319,11 @@ export default function DashboardScreen() {
 
       {/* Currently Working */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Currently Working</Text>
+        <Text style={styles.sectionTitle}>{labels.currentlyWorking}</Text>
         {activeEntries.length === 0 ? (
           <View style={styles.emptyCard}>
             <Ionicons name="people-outline" size={24} color="#5A6A80" />
-            <Text style={styles.emptyText}>No workers clocked in</Text>
+            <Text style={styles.emptyText}>{labels.noWorkersClocked}</Text>
           </View>
         ) : (
           activeEntries.slice(0, 5).map((entry) => (
@@ -332,7 +349,7 @@ export default function DashboardScreen() {
             style={styles.viewAllBtn}
             onPress={() => navigation.navigate("ActiveWorkers")}
           >
-            <Text style={styles.viewAllText}>View All ({activeEntries.length})</Text>
+            <Text style={styles.viewAllText}>{labels.viewAll} ({activeEntries.length})</Text>
             <Ionicons name="chevron-forward" size={14} color="#3B82F6" />
           </TouchableOpacity>
         )}
@@ -340,7 +357,7 @@ export default function DashboardScreen() {
 
       {/* Project Status */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Project Status</Text>
+        <Text style={styles.sectionTitle}>{labels.projectStatus}</Text>
         <View style={styles.projectStatusRow}>
           {projectStatus.map((status, idx) => (
             <View key={idx} style={styles.projectStatusCard}>

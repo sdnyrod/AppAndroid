@@ -5,30 +5,48 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { apiClient } from "@/services/api";
+import { useLanguageStore } from "@/store/languageStore";
+
+interface Project {
+  id: number;
+  name: string;
+  address?: string;
+  clientName?: string;
+  status?: string;
+}
 
 export default function ProjectsScreen() {
   const navigation = useNavigation<any>();
-  const [projects, setProjects] = useState<any[]>([]);
-  const [filtered, setFiltered] = useState<any[]>([]);
+  const labels = useLanguageStore((s) => s.labels);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [filtered, setFiltered] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
 
   const fetchData = useCallback(async () => {
     try {
-      const data = await apiClient.get<any[]>("projects.list");
-      setProjects(data || []);
-      setFiltered(data || []);
-    } catch {} finally {
+      const data = await apiClient.get<Project[]>("projects.list");
+      const projectList = data || [];
+      setProjects(projectList);
+      setFiltered(projectList);
+    } catch {
+      // Network error — keep empty state
+    } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   useEffect(() => {
-    if (!search.trim()) { setFiltered(projects); return; }
+    if (!search.trim()) {
+      setFiltered(projects);
+      return;
+    }
     const q = search.toLowerCase();
     setFiltered(projects.filter((p) =>
       (p.name || "").toLowerCase().includes(q) ||
@@ -37,30 +55,56 @@ export default function ProjectsScreen() {
     ));
   }, [search, projects]);
 
-  const onRefresh = () => { setRefreshing(true); fetchData(); };
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
 
-  if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color="#3B82F6" /></View>;
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <View style={styles.searchBar}>
         <Ionicons name="search" size={18} color="#5A6A80" />
-        <TextInput style={styles.searchInput} placeholder="Search projects..." placeholderTextColor="#5A6A80" value={search} onChangeText={setSearch} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder={labels.searchProjects}
+          placeholderTextColor="#5A6A80"
+          value={search}
+          onChangeText={setSearch}
+        />
       </View>
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id?.toString()}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" colors={["#3B82F6"]} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#3B82F6"
+            colors={["#3B82F6"]}
+          />
+        }
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => navigation.navigate("JobCost", { projectId: item.id })} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => navigation.navigate("JobCost", { projectId: item.id })}
+            activeOpacity={0.7}
+          >
             <View style={styles.iconWrap}>
               <Ionicons name="folder-open" size={20} color="#F59E0B" />
             </View>
             <View style={styles.info}>
               <Text style={styles.name}>{item.name}</Text>
-              {item.address && <Text style={styles.address}>{item.address}</Text>}
-              {item.clientName && <Text style={styles.client}>{item.clientName}</Text>}
+              {item.address ? <Text style={styles.address}>{item.address}</Text> : null}
+              {item.clientName ? <Text style={styles.client}>{item.clientName}</Text> : null}
             </View>
             <View style={[styles.statusBadge, item.status === "active" ? styles.badgeActive : styles.badgeDefault]}>
               <Text style={styles.badgeText}>{item.status || "active"}</Text>
@@ -70,7 +114,7 @@ export default function ProjectsScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="folder-outline" size={40} color="#5A6A80" />
-            <Text style={styles.emptyText}>No projects found</Text>
+            <Text style={styles.emptyText}>{labels.noProjectsFound}</Text>
           </View>
         }
       />

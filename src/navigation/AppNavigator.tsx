@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import { useAuthStore } from "@/store/authStore";
 import { usePermissionsStore } from "@/store/permissionsStore";
+import { useLanguageStore } from "@/store/languageStore";
 
 // Auth Screens
 import LoginScreen from "@/screens/auth/LoginScreen";
@@ -35,10 +36,12 @@ function AppDrawer() {
 
 export default function AppNavigator() {
   const { isAuthenticated, isLoading, user, checkAuth } = useAuthStore();
-  const { fetchPermissions, reset: resetPermissions, loaded: permissionsLoaded } = usePermissionsStore();
+  const { fetchPermissions, reset: resetPermissions } = usePermissionsStore();
+  const { loadLanguage } = useLanguageStore();
 
   useEffect(() => {
     checkAuth();
+    loadLanguage();
   }, []);
 
   // Fetch permissions when authenticated

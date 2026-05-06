@@ -194,7 +194,7 @@ export default function JobCostScreen() {
                 </View>
               </View>
               <View style={styles.breakdownBarBg}>
-                <View style={[styles.breakdownBarFill, { width: `${laborPct}%`, backgroundColor: "#3B82F6" }]} />
+                <View style={[styles.breakdownBarFill, { width: `${laborPct}%` as unknown as number, backgroundColor: "#3B82F6" }]} />
               </View>
 
               {/* Materials */}
@@ -209,7 +209,7 @@ export default function JobCostScreen() {
                 </View>
               </View>
               <View style={styles.breakdownBarBg}>
-                <View style={[styles.breakdownBarFill, { width: `${materialsPct}%`, backgroundColor: "#10B981" }]} />
+                <View style={[styles.breakdownBarFill, { width: `${materialsPct}%` as unknown as number, backgroundColor: "#10B981" }]} />
               </View>
 
               {/* Other */}
@@ -224,7 +224,7 @@ export default function JobCostScreen() {
                 </View>
               </View>
               <View style={styles.breakdownBarBg}>
-                <View style={[styles.breakdownBarFill, { width: `${otherPct}%`, backgroundColor: "#F59E0B" }]} />
+                <View style={[styles.breakdownBarFill, { width: `${otherPct}%` as unknown as number, backgroundColor: "#F59E0B" }]} />
               </View>
             </View>
           </View>
