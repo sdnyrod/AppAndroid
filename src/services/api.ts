@@ -14,11 +14,19 @@ export async function getStoredToken(): Promise<string | null> {
 }
 
 export async function storeToken(token: string): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
+  try {
+    await SecureStore.setItemAsync(TOKEN_KEY, token);
+  } catch (e) {
+    console.error("[Auth] Failed to store token:", e);
+  }
 }
 
 export async function removeToken(): Promise<void> {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  try {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+  } catch {
+    // Ignore - token may not exist
+  }
 }
 
 // --- Core API Request ---
@@ -41,6 +49,7 @@ async function apiRequest<T>(
     ...(options.headers as Record<string, string>),
   };
 
+  // Send token as Cookie header — this is how the backend validates sessions
   if (token) {
     headers["Cookie"] = `app_session_id=${token}`;
   }
@@ -49,20 +58,26 @@ async function apiRequest<T>(
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
-      credentials: "include",
+      // Do NOT use credentials: "include" on React Native — it causes issues
+      // We handle cookies manually via the Cookie header above
     });
 
-    // Extract set-cookie header for token persistence
-    const setCookie = response.headers.get("set-cookie");
-    if (setCookie) {
-      const match = setCookie.match(/app_session_id=([^;]+)/);
-      if (match) {
-        await storeToken(match[1]);
+    // Attempt to extract set-cookie (works on Android, usually blocked on iOS)
+    // This is a fallback — primary token capture is from response body in login()
+    try {
+      const setCookie = response.headers.get("set-cookie");
+      if (setCookie) {
+        const match = setCookie.match(/app_session_id=([^;]+)/);
+        if (match && match[1]) {
+          await storeToken(match[1]);
+        }
       }
+    } catch {
+      // Silently ignore — iOS blocks Set-Cookie header access
     }
 
     if (response.status === 401) {
-      await removeToken();
+      // Don't remove token on 401 during login flow — only on explicit auth checks
       return { ok: false, error: "Unauthorized", status: 401 };
     }
 
@@ -77,7 +92,7 @@ async function apiRequest<T>(
     if (!response.ok) {
       return {
         ok: false,
-        error: data?.error?.message || data?.message || "Request failed",
+        error: data?.error?.json?.message || data?.error?.message || data?.message || "Request failed",
         status: response.status,
       };
     }
@@ -161,12 +176,19 @@ export const apiClient = {
 
 // --- Auth Endpoints ---
 
+/**
+ * Login via local auth (email + password).
+ * CRITICAL: The backend returns the JWT token in the response BODY (not just Set-Cookie)
+ * because React Native on iOS cannot read Set-Cookie headers.
+ * We MUST extract and store the token from the body before any subsequent API calls.
+ */
 export async function login(email: string, password: string, tenantId?: number) {
   const response = await trpcMutation<{
     success: boolean;
     mustChangePassword: boolean;
     isSalesperson: boolean;
     salespersonRank: string | null;
+    token: string; // JWT token returned in body for mobile apps
     user: {
       id: number;
       name: string;
@@ -179,6 +201,12 @@ export async function login(email: string, password: string, tenantId?: number) 
     loginType: "tenant",
     ...(tenantId ? { tenantId } : {}),
   });
+
+  // CRITICAL: Extract token from response body and persist it
+  // This is the PRIMARY mechanism for mobile auth (Set-Cookie is unreliable on iOS)
+  if (response.ok && response.data?.token) {
+    await storeToken(response.data.token);
+  }
 
   return response;
 }
