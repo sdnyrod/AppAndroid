@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,15 +11,30 @@ import {
   Image,
   ScrollView,
   Alert,
+  Switch,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as LocalAuthentication from "expo-local-authentication";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { useAuthStore } from "@/store/authStore";
 import { apiClient } from "@/services/api";
+
+// Storage keys
+const SAVED_EMAIL_KEY = "crew_saved_email";
+const BIOMETRIC_ENABLED_KEY = "crew_biometric_enabled";
+const SAVED_CREDENTIALS_KEY = "crew_saved_credentials";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricType, setBiometricType] = useState<string>("Biometrics");
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [attemptedBiometric, setAttemptedBiometric] = useState(false);
+
   const {
     login,
     isLoading,
@@ -38,11 +53,142 @@ export default function LoginScreen() {
   const [changingPassword, setChangingPassword] = useState(false);
   const [changeError, setChangeError] = useState<string | null>(null);
 
+  // =========================================================================
+  // INITIALIZATION
+  // =========================================================================
+
+  useEffect(() => {
+    initializeLogin();
+  }, []);
+
+  const initializeLogin = async () => {
+    // 1. Load saved email
+    try {
+      const savedEmail = await AsyncStorage.getItem(SAVED_EMAIL_KEY);
+      if (savedEmail) {
+        setEmail(savedEmail);
+      }
+    } catch {}
+
+    // 2. Check biometric availability
+    try {
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      setBiometricAvailable(compatible && enrolled);
+
+      if (compatible && enrolled) {
+        const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+        if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+          setBiometricType("Face ID");
+        } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+          setBiometricType("Fingerprint");
+        }
+      }
+    } catch {}
+
+    // 3. Check if biometric login is enabled
+    try {
+      const enabled = await AsyncStorage.getItem(BIOMETRIC_ENABLED_KEY);
+      if (enabled === "true") {
+        setBiometricEnabled(true);
+      }
+    } catch {}
+  };
+
+  // Auto-attempt biometric login on mount if enabled
+  useEffect(() => {
+    if (biometricEnabled && biometricAvailable && !attemptedBiometric) {
+      setAttemptedBiometric(true);
+      handleBiometricLogin();
+    }
+  }, [biometricEnabled, biometricAvailable]);
+
+  // =========================================================================
+  // BIOMETRIC LOGIN
+  // =========================================================================
+
+  const handleBiometricLogin = async () => {
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: `Sign in with ${biometricType}`,
+        cancelLabel: "Use Password",
+        disableDeviceFallback: false,
+      });
+
+      if (result.success) {
+        // Retrieve saved credentials
+        const credentialsJson = await SecureStore.getItemAsync(SAVED_CREDENTIALS_KEY);
+        if (credentialsJson) {
+          const credentials = JSON.parse(credentialsJson);
+          clearError();
+          const success = await login(credentials.email, credentials.password);
+          if (success) {
+            // Save email for next time
+            await AsyncStorage.setItem(SAVED_EMAIL_KEY, credentials.email);
+          }
+        } else {
+          Alert.alert(
+            "No Saved Credentials",
+            "Please sign in with your password first to enable biometric login."
+          );
+        }
+      }
+    } catch {
+      // User cancelled or biometric failed — do nothing, show password form
+    }
+  };
+
+  // =========================================================================
+  // PASSWORD LOGIN
+  // =========================================================================
+
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) return;
     clearError();
-    await login(email.trim(), password);
+
+    const success = await login(email.trim(), password);
+
+    if (success) {
+      // Save email for next login
+      await AsyncStorage.setItem(SAVED_EMAIL_KEY, email.trim());
+
+      // Save credentials if remember me is on
+      if (rememberMe) {
+        await SecureStore.setItemAsync(
+          SAVED_CREDENTIALS_KEY,
+          JSON.stringify({ email: email.trim(), password })
+        );
+
+        // If biometric is available but not yet enabled, ask user
+        if (biometricAvailable && !biometricEnabled) {
+          setTimeout(() => {
+            promptEnableBiometric();
+          }, 1000);
+        }
+      }
+    }
   };
+
+  const promptEnableBiometric = () => {
+    Alert.alert(
+      `Enable ${biometricType}?`,
+      `Would you like to use ${biometricType} for faster sign-in next time?`,
+      [
+        { text: "Not Now", style: "cancel" },
+        {
+          text: "Enable",
+          onPress: async () => {
+            await AsyncStorage.setItem(BIOMETRIC_ENABLED_KEY, "true");
+            setBiometricEnabled(true);
+          },
+        },
+      ]
+    );
+  };
+
+  // =========================================================================
+  // CHANGE PASSWORD
+  // =========================================================================
 
   const handleChangePassword = async () => {
     setChangeError(null);
@@ -69,13 +215,19 @@ export default function LoginScreen() {
       });
 
       if (result.ok) {
-        // Password changed successfully, now login with new password
         clearMustChangePassword();
         setNewPassword("");
         setConfirmNewPassword("");
         setChangeError(null);
         // Login with the new password
-        await login(pendingEmail || email.trim(), newPassword);
+        const success = await login(pendingEmail || email.trim(), newPassword);
+        if (success && rememberMe) {
+          await SecureStore.setItemAsync(
+            SAVED_CREDENTIALS_KEY,
+            JSON.stringify({ email: pendingEmail || email.trim(), password: newPassword })
+          );
+          await AsyncStorage.setItem(SAVED_EMAIL_KEY, pendingEmail || email.trim());
+        }
       } else {
         setChangeError(result.error || "Failed to change password");
       }
@@ -86,7 +238,10 @@ export default function LoginScreen() {
     }
   };
 
-  // Must Change Password Screen
+  // =========================================================================
+  // RENDER: MUST CHANGE PASSWORD
+  // =========================================================================
+
   if (mustChangePassword) {
     return (
       <KeyboardAvoidingView
@@ -113,7 +268,6 @@ export default function LoginScreen() {
                 </View>
               )}
 
-              {/* New Password */}
               <View style={styles.inputWrapper}>
                 <Ionicons name="lock-closed-outline" size={18} color="#5A6A80" style={styles.inputIcon} />
                 <TextInput
@@ -135,7 +289,6 @@ export default function LoginScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Confirm New Password */}
               <View style={styles.inputWrapper}>
                 <Ionicons name="lock-closed-outline" size={18} color="#5A6A80" style={styles.inputIcon} />
                 <TextInput
@@ -181,7 +334,10 @@ export default function LoginScreen() {
     );
   }
 
-  // Normal Login Screen
+  // =========================================================================
+  // RENDER: NORMAL LOGIN
+  // =========================================================================
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -209,6 +365,7 @@ export default function LoginScreen() {
               </View>
             )}
 
+            {/* Email */}
             <View style={styles.inputWrapper}>
               <Ionicons name="mail-outline" size={18} color="#5A6A80" style={styles.inputIcon} />
               <TextInput
@@ -223,6 +380,7 @@ export default function LoginScreen() {
               />
             </View>
 
+            {/* Password */}
             <View style={styles.inputWrapper}>
               <Ionicons name="lock-closed-outline" size={18} color="#5A6A80" style={styles.inputIcon} />
               <TextInput
@@ -243,6 +401,21 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Remember Me */}
+            <View style={styles.rememberRow}>
+              <TouchableOpacity
+                style={styles.rememberToggle}
+                onPress={() => setRememberMe(!rememberMe)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                  {rememberMe && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
+                </View>
+                <Text style={styles.rememberText}>Remember me</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Sign In Button */}
             <TouchableOpacity
               style={[styles.button, isLoading && styles.buttonDisabled]}
               onPress={handleLogin}
@@ -254,12 +427,32 @@ export default function LoginScreen() {
                 <Text style={styles.buttonText}>Sign In</Text>
               )}
             </TouchableOpacity>
+
+            {/* Biometric Login Button */}
+            {biometricEnabled && biometricAvailable && (
+              <TouchableOpacity
+                style={styles.biometricButton}
+                onPress={handleBiometricLogin}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={biometricType === "Face ID" ? "scan-outline" : "finger-print-outline"}
+                  size={22}
+                  color="#3B82F6"
+                />
+                <Text style={styles.biometricButtonText}>Sign in with {biometricType}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
+
+// =============================================================================
+// STYLES
+// =============================================================================
 
 const styles = StyleSheet.create({
   container: {
@@ -343,6 +536,33 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
   },
+  rememberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  rememberToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: "#5A6A80",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  checkboxChecked: {
+    backgroundColor: "#3B82F6",
+    borderColor: "#3B82F6",
+  },
+  rememberText: {
+    color: "#8892A4",
+    fontSize: 14,
+  },
   button: {
     backgroundColor: "#3B82F6",
     borderRadius: 12,
@@ -357,6 +577,22 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  biometricButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#3B82F6",
+    backgroundColor: "transparent",
+  },
+  biometricButtonText: {
+    color: "#3B82F6",
+    fontSize: 15,
+    fontWeight: "500",
   },
   backButton: {
     flexDirection: "row",

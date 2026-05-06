@@ -63,7 +63,13 @@
       ],
       "expo-document-picker",
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "CREW uses Face ID for quick and secure login."
+        }
+      ]
     ],
     "extra": {
       "eas": {
