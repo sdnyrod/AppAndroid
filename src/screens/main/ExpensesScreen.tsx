@@ -50,6 +50,7 @@ interface Expense {
 interface Project {
   id: number;
   name: string;
+  status?: string;
 }
 
 interface ScanResult {
@@ -72,12 +73,19 @@ export default function ExpensesScreen() {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
 
-  // Form state
+  // SELECTED PROJECT — the key state for job-first flow
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [showProjectSelector, setShowProjectSelector] = useState(false);
+
+  // Scan confirmation dialog
+  const [showScanConfirm, setShowScanConfirm] = useState(false);
+
+  // Form state (for manual entry / edit)
   const [showForm, setShowForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [formData, setFormData] = useState({
     projectId: 0,
-    category: "material" as string,
+    category: "other" as string,
     description: "",
     vendor: "",
     amount: "",
@@ -86,7 +94,6 @@ export default function ExpensesScreen() {
     receiptUrl: "",
   });
   const [submitting, setSubmitting] = useState(false);
-  const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
@@ -128,10 +135,23 @@ export default function ExpensesScreen() {
     fetchExpenses();
   };
 
+  const getSelectedProject = () => projects.find((p) => p.id === selectedProjectId);
+  const getProjectName = (projectId: number) => projects.find((p) => p.id === projectId)?.name || `Project #${projectId}`;
+
+  // Filter expenses by selected project
+  const filteredExpenses = selectedProjectId
+    ? expenses.filter((e) => e.projectId === selectedProjectId)
+    : expenses;
+
   // =========================================================================
-  // RECEIPT SCANNING (Camera + AI OCR)
+  // RECEIPT SCANNING (Camera + AI OCR) — only available AFTER project selected
   // =========================================================================
   const handleScanReceipt = async () => {
+    if (!selectedProjectId) {
+      Alert.alert("Select a Project", "Please select a project/job first before scanning a receipt.");
+      return;
+    }
+
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Permission Required", "Camera access is needed to scan receipts.");
@@ -141,7 +161,7 @@ export default function ExpensesScreen() {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ["images"],
       quality: 0.9,
-      allowsEditing: true, // Allows user to crop/adjust (edge detection)
+      allowsEditing: true,
     });
 
     if (!result.canceled && result.assets.length > 0) {
@@ -150,6 +170,11 @@ export default function ExpensesScreen() {
   };
 
   const handlePickReceipt = async () => {
+    if (!selectedProjectId) {
+      Alert.alert("Select a Project", "Please select a project/job first before scanning a receipt.");
+      return;
+    }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       quality: 0.9,
@@ -187,10 +212,10 @@ export default function ExpensesScreen() {
         const scan = response.data;
         setScanResult(scan);
 
-        // Pre-fill form with extracted data
+        // Pre-fill form with extracted data + selected project
         setFormData({
-          projectId: formData.projectId || (projects.length > 0 ? projects[0].id : 0),
-          category: scan.category || "material",
+          projectId: selectedProjectId!,
+          category: scan.category || "other",
           description: scan.items && scan.items.length > 0
             ? scan.items.map((i) => i.description).join(", ")
             : "Scanned receipt",
@@ -200,14 +225,15 @@ export default function ExpensesScreen() {
           notes: scan.notesBreakdown || "",
           receiptUrl: scan.receiptUrl || "",
         });
-        setShowForm(true);
-        Alert.alert(
-          "Receipt Scanned",
-          `Vendor: ${scan.vendor || "Unknown"}\nTotal: $${scan.total?.toFixed(2) || "0.00"}\n${scan.items?.length || 0} items detected.\n\nPlease review and confirm.`
-        );
+
+        // Show confirmation dialog with summary
+        setShowScanConfirm(true);
       } else {
         Alert.alert("Scan Failed", "Could not extract data from the receipt. Please enter manually.");
         resetForm();
+        if (selectedProjectId) {
+          setFormData((prev) => ({ ...prev, projectId: selectedProjectId }));
+        }
         setShowForm(true);
       }
     } catch (err: any) {
@@ -217,13 +243,52 @@ export default function ExpensesScreen() {
     }
   };
 
+  // Confirm scanned expense — launches it directly
+  const handleConfirmScan = async () => {
+    setSubmitting(true);
+    try {
+      const res = await apiClient.post("expenses.createFromScan", {
+        projectId: formData.projectId,
+        category: formData.category,
+        description: formData.description,
+        vendor: formData.vendor || undefined,
+        amount: formData.amount,
+        receiptUrl: formData.receiptUrl,
+        expenseDate: formData.expenseDate,
+        notes: formData.notes || undefined,
+      });
+      if (res.ok) {
+        Alert.alert(
+          "✓ Expense Recorded",
+          `$${formData.amount} — ${formData.vendor || formData.description}\nProject: ${getProjectName(formData.projectId)}\nReceipt attached ✓`
+        );
+        setShowScanConfirm(false);
+        setScanResult(null);
+        resetForm();
+        fetchExpenses();
+      } else {
+        Alert.alert("Error", res.error || "Failed to create expense.");
+      }
+    } catch (err: any) {
+      Alert.alert("Error", err?.message || "Operation failed.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Edit scanned data before confirming
+  const handleEditScan = () => {
+    setShowScanConfirm(false);
+    setShowForm(true);
+  };
+
   // =========================================================================
   // CRUD OPERATIONS
   // =========================================================================
   const resetForm = () => {
     setFormData({
-      projectId: projects.length > 0 ? projects[0].id : 0,
-      category: "material",
+      projectId: selectedProjectId || 0,
+      category: "other",
       description: "",
       vendor: "",
       amount: "",
@@ -236,6 +301,10 @@ export default function ExpensesScreen() {
   };
 
   const handleAddNew = () => {
+    if (!selectedProjectId) {
+      Alert.alert("Select a Project", "Please select a project/job first.");
+      return;
+    }
     resetForm();
     setShowForm(true);
   };
@@ -272,7 +341,6 @@ export default function ExpensesScreen() {
     setSubmitting(true);
     try {
       if (editingExpense) {
-        // Update existing
         const res = await apiClient.post("expenses.update", {
           id: editingExpense.id,
           ...formData,
@@ -286,7 +354,6 @@ export default function ExpensesScreen() {
           return;
         }
       } else if (scanResult && formData.receiptUrl) {
-        // Create from scan
         const res = await apiClient.post("expenses.createFromScan", {
           projectId: formData.projectId,
           category: formData.category,
@@ -304,7 +371,6 @@ export default function ExpensesScreen() {
           return;
         }
       } else {
-        // Create manual
         const res = await apiClient.post("expenses.create", {
           projectId: formData.projectId,
           category: formData.category,
@@ -315,7 +381,7 @@ export default function ExpensesScreen() {
           notes: formData.notes || undefined,
         });
         if (res.ok) {
-          Alert.alert("Success", "Expense created.");
+          Alert.alert("Success", "Expense recorded.");
         } else {
           Alert.alert("Error", res.error || "Failed to create expense.");
           return;
@@ -347,24 +413,15 @@ export default function ExpensesScreen() {
   };
 
   // =========================================================================
-  // RENDER
+  // RENDER HELPERS
   // =========================================================================
-  const getCategoryIcon = (cat: string) => {
-    return CATEGORIES.find((c) => c.value === cat)?.icon || "receipt-outline";
-  };
-
-  const getCategoryLabel = (cat: string) => {
-    return CATEGORIES.find((c) => c.value === cat)?.label || cat;
-  };
-
-  const getProjectName = (projectId: number) => {
-    return projects.find((p) => p.id === projectId)?.name || `Project #${projectId}`;
-  };
+  const getCategoryIcon = (cat: string) => CATEGORIES.find((c) => c.value === cat)?.icon || "receipt-outline";
+  const getCategoryLabel = (cat: string) => CATEGORIES.find((c) => c.value === cat)?.label || cat;
 
   const formatDate = (dateStr: string) => {
     try {
       const d = new Date(dateStr);
-      return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     } catch {
       return dateStr;
     }
@@ -374,6 +431,8 @@ export default function ExpensesScreen() {
     const num = typeof amount === "string" ? parseFloat(amount) : amount;
     return `$${num.toFixed(2)}`;
   };
+
+  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + parseFloat(e.amount || "0"), 0);
 
   if (loading) {
     return (
@@ -395,7 +454,7 @@ export default function ExpensesScreen() {
           <Text style={styles.expenseMeta}>
             {getCategoryLabel(item.category)} • {item.vendor || "No vendor"} • {formatDate(item.expenseDate)}
           </Text>
-          {item.project && (
+          {!selectedProjectId && item.project && (
             <Text style={styles.expenseProject}>{item.project.name || getProjectName(item.projectId)}</Text>
           )}
         </View>
@@ -404,7 +463,7 @@ export default function ExpensesScreen() {
           <View style={styles.actionRow}>
             {item.receiptUrl && (
               <TouchableOpacity onPress={() => setPreviewReceipt(item.receiptUrl!)} style={styles.actionBtn}>
-                <Ionicons name="image-outline" size={16} color="#8892A4" />
+                <Ionicons name="document-attach-outline" size={16} color="#10B981" />
               </TouchableOpacity>
             )}
             <TouchableOpacity onPress={() => handleEdit(item)} style={styles.actionBtn}>
@@ -421,47 +480,201 @@ export default function ExpensesScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header Actions */}
-      <View style={styles.headerActions}>
-        <TouchableOpacity style={styles.scanButton} onPress={handleScanReceipt}>
-          <Ionicons name="camera-outline" size={20} color="#FFF" />
-          <Text style={styles.scanButtonText}>Scan Receipt</Text>
+      {/* ============ STEP 1: PROJECT SELECTOR (always visible at top) ============ */}
+      <View style={styles.projectSelectorWrap}>
+        <TouchableOpacity style={styles.projectSelector} onPress={() => setShowProjectSelector(true)}>
+          <Ionicons name="business-outline" size={18} color="#3B82F6" />
+          <Text style={styles.projectSelectorText} numberOfLines={1}>
+            {selectedProjectId ? getProjectName(selectedProjectId) : "Select a Job / Project..."}
+          </Text>
+          <Ionicons name="chevron-down" size={18} color="#8892A4" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.pickButton} onPress={handlePickReceipt}>
-          <Ionicons name="images-outline" size={20} color="#3B82F6" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddNew}>
-          <Ionicons name="add" size={22} color="#FFF" />
-        </TouchableOpacity>
+        {selectedProjectId && (
+          <TouchableOpacity style={styles.clearProject} onPress={() => setSelectedProjectId(null)}>
+            <Ionicons name="close-circle" size={20} color="#8892A4" />
+          </TouchableOpacity>
+        )}
       </View>
+
+      {/* ============ STEP 2: ACTION BUTTONS (camera only shows after project selected) ============ */}
+      {selectedProjectId && (
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.scanButton} onPress={handleScanReceipt}>
+            <Ionicons name="camera-outline" size={20} color="#FFF" />
+            <Text style={styles.scanButtonText}>Scan Receipt</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.pickButton} onPress={handlePickReceipt}>
+            <Ionicons name="images-outline" size={20} color="#3B82F6" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.addButton} onPress={handleAddNew}>
+            <Ionicons name="add" size={22} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Summary bar */}
+      {selectedProjectId && filteredExpenses.length > 0 && (
+        <View style={styles.summaryBar}>
+          <Text style={styles.summaryText}>
+            {filteredExpenses.length} expense{filteredExpenses.length !== 1 ? "s" : ""}
+          </Text>
+          <Text style={styles.summaryTotal}>Total: {formatCurrency(totalExpenses)}</Text>
+        </View>
+      )}
+
+      {/* Prompt to select project if none selected */}
+      {!selectedProjectId && (
+        <View style={styles.promptWrap}>
+          <Ionicons name="arrow-up-circle-outline" size={48} color="#3B82F6" />
+          <Text style={styles.promptTitle}>Select a Job First</Text>
+          <Text style={styles.promptSubtext}>
+            Choose a project above to view expenses and scan receipts
+          </Text>
+        </View>
+      )}
 
       {/* Scanning Overlay */}
       {scanning && (
         <View style={styles.scanningOverlay}>
           <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.scanningText}>Scanning receipt with AI...</Text>
+          <Text style={styles.scanningText}>Reading receipt with AI...</Text>
           <Text style={styles.scanningSubtext}>Extracting vendor, items, and totals</Text>
         </View>
       )}
 
-      {/* Expenses List */}
-      {expenses.length === 0 ? (
-        <View style={styles.centered}>
-          <Ionicons name="receipt-outline" size={48} color="#5A6A80" />
-          <Text style={styles.emptyText}>No expenses recorded yet</Text>
-          <Text style={styles.emptySubtext}>Scan a receipt or add manually</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={expenses}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderExpenseItem}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" colors={["#3B82F6"]} />
-          }
-          contentContainerStyle={styles.listContent}
-        />
+      {/* Expenses List (filtered by selected project) */}
+      {selectedProjectId && !scanning && (
+        filteredExpenses.length === 0 ? (
+          <View style={styles.centered}>
+            <Ionicons name="receipt-outline" size={48} color="#5A6A80" />
+            <Text style={styles.emptyText}>No expenses for this project</Text>
+            <Text style={styles.emptySubtext}>Scan a receipt or add manually</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredExpenses}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={renderExpenseItem}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" colors={["#3B82F6"]} />
+            }
+            contentContainerStyle={styles.listContent}
+          />
+        )
       )}
+
+      {/* ============ SCAN CONFIRMATION DIALOG ============ */}
+      <Modal visible={showScanConfirm} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.scanConfirmBox}>
+            <View style={styles.scanConfirmHeader}>
+              <Ionicons name="checkmark-circle" size={28} color="#10B981" />
+              <Text style={styles.scanConfirmTitle}>Receipt Scanned</Text>
+            </View>
+
+            <View style={styles.scanConfirmBody}>
+              {/* Project (already selected) */}
+              <View style={styles.scanRow}>
+                <Text style={styles.scanLabel}>Project</Text>
+                <Text style={styles.scanValue}>{getProjectName(formData.projectId)}</Text>
+              </View>
+
+              {/* Vendor */}
+              {formData.vendor ? (
+                <View style={styles.scanRow}>
+                  <Text style={styles.scanLabel}>Vendor</Text>
+                  <Text style={styles.scanValue}>{formData.vendor}</Text>
+                </View>
+              ) : null}
+
+              {/* Description */}
+              <View style={styles.scanRow}>
+                <Text style={styles.scanLabel}>Description</Text>
+                <Text style={styles.scanValue} numberOfLines={2}>{formData.description}</Text>
+              </View>
+
+              {/* Amount */}
+              <View style={styles.scanRow}>
+                <Text style={styles.scanLabel}>Amount</Text>
+                <Text style={[styles.scanValue, styles.scanAmount]}>${formData.amount}</Text>
+              </View>
+
+              {/* Date */}
+              <View style={styles.scanRow}>
+                <Text style={styles.scanLabel}>Date</Text>
+                <Text style={styles.scanValue}>{formData.expenseDate}</Text>
+              </View>
+
+              {/* Receipt attached indicator */}
+              {formData.receiptUrl ? (
+                <View style={styles.scanRow}>
+                  <Text style={styles.scanLabel}>Receipt</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <Ionicons name="document-attach" size={14} color="#10B981" />
+                    <Text style={[styles.scanValue, { color: "#10B981" }]}>Attached ✓</Text>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+
+            {/* Actions */}
+            <View style={styles.scanConfirmActions}>
+              <TouchableOpacity style={styles.editScanBtn} onPress={handleEditScan}>
+                <Ionicons name="pencil-outline" size={16} color="#3B82F6" />
+                <Text style={styles.editScanText}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmScanBtn, submitting && { opacity: 0.5 }]}
+                onPress={handleConfirmScan}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark" size={18} color="#FFF" />
+                    <Text style={styles.confirmScanText}>Confirm & Save</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.cancelScanBtn}
+              onPress={() => { setShowScanConfirm(false); setScanResult(null); }}
+            >
+              <Text style={styles.cancelScanText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ============ PROJECT SELECTOR MODAL ============ */}
+      <Modal visible={showProjectSelector} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.pickerModal}>
+            <Text style={styles.pickerModalTitle}>Select Job / Project</Text>
+            <FlatList
+              data={projects.filter((p) => p.status !== "cancelled")}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.pickerItem, selectedProjectId === item.id && styles.pickerItemActive]}
+                  onPress={() => { setSelectedProjectId(item.id); setShowProjectSelector(false); }}
+                >
+                  <Ionicons name="business-outline" size={18} color="#3B82F6" style={{ marginRight: 12 }} />
+                  <Text style={styles.pickerItemText}>{item.name}</Text>
+                  {selectedProjectId === item.id && <Ionicons name="checkmark" size={18} color="#3B82F6" />}
+                </TouchableOpacity>
+              )}
+              style={{ maxHeight: 400 }}
+            />
+            <TouchableOpacity style={styles.pickerClose} onPress={() => setShowProjectSelector(false)}>
+              <Text style={styles.pickerCloseText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Delete Confirmation */}
       <Modal visible={deleteConfirmId !== null} transparent animationType="fade">
@@ -507,7 +720,7 @@ export default function ExpensesScreen() {
               <Text style={styles.formCancel}>Cancel</Text>
             </TouchableOpacity>
             <Text style={styles.formTitle}>
-              {editingExpense ? "Edit Expense" : scanResult ? "Confirm Scanned Expense" : "New Expense"}
+              {editingExpense ? "Edit Expense" : scanResult ? "Edit Scanned Data" : "New Expense"}
             </Text>
             <TouchableOpacity onPress={handleSubmit} disabled={submitting}>
               <Text style={[styles.formSave, submitting && { opacity: 0.5 }]}>
@@ -528,17 +741,18 @@ export default function ExpensesScreen() {
               </View>
             ) : null}
 
-            {/* Project Picker */}
-            <Text style={styles.fieldLabel}>Project *</Text>
-            <TouchableOpacity style={styles.pickerButton} onPress={() => setShowProjectPicker(true)}>
-              <Text style={styles.pickerText}>
-                {formData.projectId ? getProjectName(formData.projectId) : "Select project..."}
+            {/* Project (locked to selected) */}
+            <Text style={styles.fieldLabel}>Project</Text>
+            <View style={[styles.pickerButton, { opacity: 0.7 }]}>
+              <Ionicons name="business-outline" size={18} color="#3B82F6" />
+              <Text style={[styles.pickerText, { marginLeft: 8 }]}>
+                {getProjectName(formData.projectId)}
               </Text>
-              <Ionicons name="chevron-down" size={18} color="#8892A4" />
-            </TouchableOpacity>
+              <Ionicons name="lock-closed-outline" size={14} color="#8892A4" />
+            </View>
 
             {/* Category Picker */}
-            <Text style={styles.fieldLabel}>Category *</Text>
+            <Text style={styles.fieldLabel}>Category</Text>
             <TouchableOpacity style={styles.pickerButton} onPress={() => setShowCategoryPicker(true)}>
               <Ionicons name={getCategoryIcon(formData.category) as any} size={18} color="#3B82F6" />
               <Text style={[styles.pickerText, { marginLeft: 8 }]}>{getCategoryLabel(formData.category)}</Text>
@@ -586,53 +800,19 @@ export default function ExpensesScreen() {
               placeholderTextColor="#5A6A80"
             />
 
-            {/* Notes / Line Items Breakdown */}
-            <Text style={styles.fieldLabel}>Notes / Line Items</Text>
+            {/* Notes */}
+            <Text style={styles.fieldLabel}>Notes</Text>
             <TextInput
-              style={[styles.input, { minHeight: 100, textAlignVertical: "top" }]}
+              style={[styles.input, { minHeight: 80, textAlignVertical: "top" }]}
               value={formData.notes}
               onChangeText={(t) => setFormData((p) => ({ ...p, notes: t }))}
-              placeholder="Line item breakdown or additional notes..."
+              placeholder="Additional notes..."
               placeholderTextColor="#5A6A80"
               multiline
-              numberOfLines={5}
+              numberOfLines={4}
             />
-
-            {/* Scan Another Receipt Button */}
-            {!editingExpense && (
-              <TouchableOpacity style={styles.scanAnotherBtn} onPress={handleScanReceipt}>
-                <Ionicons name="camera-outline" size={18} color="#3B82F6" />
-                <Text style={styles.scanAnotherText}>Scan Another Receipt</Text>
-              </TouchableOpacity>
-            )}
           </ScrollView>
         </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Project Picker Modal */}
-      <Modal visible={showProjectPicker} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.pickerModal}>
-            <Text style={styles.pickerModalTitle}>Select Project</Text>
-            <FlatList
-              data={projects}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[styles.pickerItem, formData.projectId === item.id && styles.pickerItemActive]}
-                  onPress={() => { setFormData((p) => ({ ...p, projectId: item.id })); setShowProjectPicker(false); }}
-                >
-                  <Text style={styles.pickerItemText}>{item.name}</Text>
-                  {formData.projectId === item.id && <Ionicons name="checkmark" size={18} color="#3B82F6" />}
-                </TouchableOpacity>
-              )}
-              style={{ maxHeight: 400 }}
-            />
-            <TouchableOpacity style={styles.pickerClose} onPress={() => setShowProjectPicker(false)}>
-              <Text style={styles.pickerCloseText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
       </Modal>
 
       {/* Category Picker Modal */}
@@ -668,8 +848,23 @@ const styles = StyleSheet.create({
   emptyText: { color: "#8892A4", fontSize: 16, marginTop: 12, fontWeight: "600" },
   emptySubtext: { color: "#5A6A80", fontSize: 13, marginTop: 4 },
 
+  // Project Selector
+  projectSelectorWrap: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
+  projectSelector: {
+    flex: 1, flexDirection: "row", alignItems: "center",
+    backgroundColor: "#0F1D32", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 14,
+    borderWidth: 1.5, borderColor: "#3B82F6", gap: 8,
+  },
+  projectSelectorText: { flex: 1, color: "#E2E8F0", fontSize: 15, fontWeight: "600" },
+  clearProject: { marginLeft: 8, padding: 4 },
+
+  // Prompt
+  promptWrap: { flex: 1, justifyContent: "center", alignItems: "center", padding: 32 },
+  promptTitle: { color: "#E2E8F0", fontSize: 18, fontWeight: "700", marginTop: 16 },
+  promptSubtext: { color: "#8892A4", fontSize: 14, marginTop: 8, textAlign: "center" },
+
   // Header Actions
-  headerActions: { flexDirection: "row", padding: 16, gap: 10, alignItems: "center" },
+  headerActions: { flexDirection: "row", paddingHorizontal: 16, paddingBottom: 8, gap: 10, alignItems: "center" },
   scanButton: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
     backgroundColor: "#3B82F6", borderRadius: 10, paddingVertical: 12, gap: 8,
@@ -684,14 +879,49 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
 
+  // Summary bar
+  summaryBar: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    paddingHorizontal: 16, paddingVertical: 8, marginHorizontal: 16,
+    backgroundColor: "#0F1D32", borderRadius: 8, marginBottom: 8,
+  },
+  summaryText: { color: "#8892A4", fontSize: 13 },
+  summaryTotal: { color: "#10B981", fontSize: 14, fontWeight: "700" },
+
   // Scanning overlay
   scanningOverlay: {
-    position: "absolute", top: 80, left: 16, right: 16, zIndex: 100,
+    position: "absolute", top: 140, left: 16, right: 16, zIndex: 100,
     backgroundColor: "#0F1D32", borderRadius: 12, padding: 24,
     alignItems: "center", borderWidth: 1, borderColor: "#1A2A40",
   },
   scanningText: { color: "#E2E8F0", fontSize: 15, fontWeight: "600", marginTop: 12 },
   scanningSubtext: { color: "#8892A4", fontSize: 12, marginTop: 4 },
+
+  // Scan Confirmation Dialog
+  scanConfirmBox: {
+    backgroundColor: "#0F1D32", borderRadius: 16, padding: 24,
+    width: SCREEN_WIDTH - 48, borderWidth: 1, borderColor: "#1A2A40",
+  },
+  scanConfirmHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16 },
+  scanConfirmTitle: { color: "#E2E8F0", fontSize: 18, fontWeight: "700" },
+  scanConfirmBody: { marginBottom: 20 },
+  scanRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#1A2A40" },
+  scanLabel: { color: "#8892A4", fontSize: 13, fontWeight: "600" },
+  scanValue: { color: "#E2E8F0", fontSize: 14, fontWeight: "500", maxWidth: "60%", textAlign: "right" },
+  scanAmount: { color: "#10B981", fontSize: 18, fontWeight: "800" },
+  scanConfirmActions: { flexDirection: "row", gap: 12 },
+  editScanBtn: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    paddingVertical: 14, borderRadius: 10, borderWidth: 1, borderColor: "#3B82F6", gap: 6,
+  },
+  editScanText: { color: "#3B82F6", fontSize: 14, fontWeight: "700" },
+  confirmScanBtn: {
+    flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    paddingVertical: 14, borderRadius: 10, backgroundColor: "#10B981", gap: 6,
+  },
+  confirmScanText: { color: "#FFF", fontSize: 14, fontWeight: "700" },
+  cancelScanBtn: { alignItems: "center", marginTop: 12, paddingVertical: 10 },
+  cancelScanText: { color: "#8892A4", fontSize: 14 },
 
   // List
   listContent: { padding: 16, paddingTop: 0 },
@@ -762,14 +992,6 @@ const styles = StyleSheet.create({
   receiptThumb: { width: SCREEN_WIDTH - 64, height: 120, borderRadius: 10 },
   receiptBadge: { flexDirection: "row", alignItems: "center", marginTop: 8, gap: 4 },
   receiptBadgeText: { color: "#10B981", fontSize: 12, fontWeight: "600" },
-
-  // Scan another
-  scanAnotherBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    marginTop: 24, paddingVertical: 14, borderRadius: 10,
-    borderWidth: 1, borderColor: "#3B82F6", gap: 8,
-  },
-  scanAnotherText: { color: "#3B82F6", fontSize: 14, fontWeight: "600" },
 
   // Picker Modal
   pickerModal: {

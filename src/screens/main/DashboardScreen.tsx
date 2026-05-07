@@ -12,7 +12,7 @@ import { useLanguageStore } from "@/store/languageStore";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 
-const APP_VERSION = "V. Teste 18";
+const APP_VERSION = "V. Teste 19";
 
 interface DashboardKPIs {
   employees: { total: number; active: number };
