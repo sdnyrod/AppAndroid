@@ -6,6 +6,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { apiClient } from "@/services/api";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import SearchableSelect from "@/components/SearchableSelect";
 
 type JobCostRouteParams = {
   JobCost: {
@@ -186,30 +187,17 @@ export default function JobCostScreen() {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" colors={["#3B82F6"]} />}
     >
-      {/* Project Selector */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.projectSelector} contentContainerStyle={styles.projectSelectorContent}>
-        {projects.map((project) => (
-          <TouchableOpacity
-            key={project.id}
-            style={[styles.projectTab, selectedProjectId === project.id && styles.projectTabActive]}
-            onPress={() => setSelectedProjectId(project.id)}
-          >
-            <Text style={[styles.projectTabText, selectedProjectId === project.id && styles.projectTabTextActive]} numberOfLines={1}>
-              {project.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Selected Project Name Header */}
-      {selectedProjectId && projects.length > 0 && (
-        <View style={styles.projectNameHeader}>
-          <Ionicons name="business-outline" size={18} color="#3B82F6" />
-          <Text style={styles.projectNameText} numberOfLines={2}>
-            {projects.find((p) => p.id === selectedProjectId)?.name || ""}
-          </Text>
-        </View>
-      )}
+      {/* Project Search Selector */}
+      <SearchableSelect
+        items={projects.map((p) => ({ id: p.id, name: p.name, subtitle: p.status }))}
+        selectedId={selectedProjectId}
+        onSelect={(item) => setSelectedProjectId(item.id)}
+        onClear={() => setSelectedProjectId(null)}
+        placeholder="Search Job / Project..."
+        icon="business-outline"
+        iconColor="#3B82F6"
+        label="Job"
+      />
 
       {loadingCost ? (
         <View style={styles.loadingSection}>
@@ -347,26 +335,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0A1628" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0A1628" },
 
-  // Project Name Header
-  projectNameHeader: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    marginHorizontal: 16, marginTop: 12, marginBottom: 4,
-    paddingVertical: 10, paddingHorizontal: 14,
-    backgroundColor: "#0F1D32", borderRadius: 10,
-    borderWidth: 1, borderColor: "#1A2A40",
-  },
-  projectNameText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700", flex: 1 },
 
-  // Project Selector
-  projectSelector: { maxHeight: 50, marginTop: 8 },
-  projectSelectorContent: { paddingHorizontal: 16, gap: 8 },
-  projectTab: {
-    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8,
-    backgroundColor: "#0F1D32", borderWidth: 1, borderColor: "#1A2A40", marginRight: 8,
-  },
-  projectTabActive: { backgroundColor: "#1D4ED8", borderColor: "#3B82F6" },
-  projectTabText: { color: "#8892A4", fontSize: 13, fontWeight: "500" },
-  projectTabTextActive: { color: "#FFFFFF", fontWeight: "600" },
 
   // Loading
   loadingSection: { alignItems: "center", paddingVertical: 40, gap: 8 },

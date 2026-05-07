@@ -7,6 +7,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { apiClient } from "@/services/api";
+import SearchableSelect from "@/components/SearchableSelect";
 
 const { width, height } = Dimensions.get("window");
 const CHIP_WIDTH = (width - 48 - 8) / 2;
@@ -74,9 +75,7 @@ export default function TimeTrackingScreen() {
   const [clockingIn, setClockingIn] = useState(false);
   const [clockingOut, setClockingOut] = useState(false);
 
-  // Search modal state
-  const [showSearchModal, setShowSearchModal] = useState(false);
-  const [searchText, setSearchText] = useState("");
+
 
   // =========================================================================
   // DATA FETCHING
@@ -214,8 +213,6 @@ export default function TimeTrackingScreen() {
   const selectProject = (project: Project) => {
     setSelectedProject(project.id);
     setSelectedProjectName(project.name);
-    setShowSearchModal(false);
-    setSearchText("");
   };
 
   // =========================================================================
@@ -223,18 +220,6 @@ export default function TimeTrackingScreen() {
   // =========================================================================
 
   const isClockedIn = !!activeEntry;
-  const displayProjects = projects.slice(0, 7);
-
-  // Memoize filtered list so it only recalculates when searchText or projects change
-  const filteredProjects = useMemo(() => {
-    const query = searchText.trim().toLowerCase();
-    if (!query) return projects;
-    return projects.filter(
-      (p) =>
-        p.name.toLowerCase().includes(query) ||
-        (p.clientName && p.clientName.toLowerCase().includes(query))
-    );
-  }, [searchText, projects]);
 
   // =========================================================================
   // RENDER
@@ -248,23 +233,6 @@ export default function TimeTrackingScreen() {
     );
   }
 
-  const renderModalProject = ({ item }: { item: Project }) => (
-    <TouchableOpacity
-      style={[
-        styles.modalProjectItem,
-        selectedProject === item.id && styles.modalProjectItemSelected,
-      ]}
-      onPress={() => selectProject(item)}
-      activeOpacity={0.7}
-    >
-      <Text style={styles.modalProjectName} numberOfLines={1}>
-        {item.name}
-      </Text>
-      {item.clientName ? (
-        <Text style={styles.modalProjectClient}>{item.clientName}</Text>
-      ) : null}
-    </TouchableOpacity>
-  );
 
   return (
     <View style={styles.container}>
@@ -300,38 +268,15 @@ export default function TimeTrackingScreen() {
             </View>
             <Text style={styles.selectLabel}>Select a project and tap to start</Text>
 
-            {/* Project chips - 2 columns */}
-            <View style={styles.chipGrid}>
-              {displayProjects.map((project) => (
-                <TouchableOpacity
-                  key={project.id}
-                  style={[
-                    styles.chip,
-                    selectedProject === project.id && styles.chipSelected,
-                  ]}
-                  onPress={() => { setSelectedProject(project.id); setSelectedProjectName(project.name); }}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.chipRadio, selectedProject === project.id && styles.chipRadioSelected]} />
-                  <Text
-                    style={[styles.chipText, selectedProject === project.id && styles.chipTextSelected]}
-                    numberOfLines={2}
-                  >
-                    {project.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-
-              {/* Search button chip - opens modal */}
-              <TouchableOpacity
-                style={styles.searchChip}
-                onPress={() => setShowSearchModal(true)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="search" size={14} color="#3B82F6" />
-                <Text style={styles.searchChipText}>Search...</Text>
-              </TouchableOpacity>
-            </View>
+            {/* Project Search Selector */}
+            <SearchableSelect
+              items={projects.map((p) => ({ id: p.id, name: p.name, subtitle: p.clientName }))}
+              selectedId={selectedProject}
+              onSelect={(item) => { setSelectedProject(item.id); setSelectedProjectName(item.name); }}
+              placeholder="Search Project..."
+              icon="business-outline"
+              iconColor="#5EEAD4"
+            />
           </View>
         )}
 
@@ -418,70 +363,7 @@ export default function TimeTrackingScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* ================================================================ */}
-      {/* SEARCH MODAL (Bottom Sheet Style) */}
-      {/* ================================================================ */}
-      <Modal
-        visible={showSearchModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => { setShowSearchModal(false); setSearchText(""); }}
-      >
-        <View style={styles.modalOverlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={styles.modalContainer}
-          >
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Project</Text>
-              <TouchableOpacity
-                onPress={() => { setShowSearchModal(false); setSearchText(""); }}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="close" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
 
-            {/* Search Input */}
-            <View style={styles.modalSearchWrap}>
-              <Ionicons name="search" size={18} color="#5A6A80" />
-              <TextInput
-                style={styles.modalSearchInput}
-                placeholder="Search projects..."
-                placeholderTextColor="#5A6A80"
-                value={searchText}
-                onChangeText={setSearchText}
-                autoFocus={false}
-                returnKeyType="search"
-              />
-              {searchText.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchText("")}>
-                  <Ionicons name="close-circle" size={18} color="#5A6A80" />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Project List */}
-            <FlatList
-              data={filteredProjects}
-              keyExtractor={(item) => String(item.id)}
-              renderItem={renderModalProject}
-              style={styles.modalList}
-              keyboardShouldPersistTaps="handled"
-              ListEmptyComponent={
-                <View style={styles.modalEmpty}>
-                  <Text style={styles.modalEmptyText}>
-                    {projects.length === 0
-                      ? "No projects available"
-                      : `No projects match "${searchText}"`}
-                  </Text>
-                </View>
-              }
-            />
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
     </View>
   );
 }

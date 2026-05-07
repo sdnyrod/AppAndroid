@@ -18,6 +18,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import { apiClient, getStoredToken } from "@/services/api";
 import { API_BASE_URL } from "@/constants/config";
+import SearchableSelect from "@/components/SearchableSelect";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const THUMB_SIZE = (SCREEN_WIDTH - 48 - 8) / 3; // 3 columns with gaps
@@ -46,7 +47,7 @@ export default function FieldMediaScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
-  const [showProjectPicker, setShowProjectPicker] = useState(false);
+
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // Load projects
@@ -327,17 +328,16 @@ export default function FieldMediaScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Project Selector */}
-      <TouchableOpacity
-        style={styles.projectSelector}
-        onPress={() => setShowProjectPicker(true)}
-      >
-        <Ionicons name="folder-outline" size={18} color="#F59E0B" />
-        <Text style={styles.projectName} numberOfLines={1}>
-          {selectedProject?.name || "Select Project"}
-        </Text>
-        <Ionicons name="chevron-down" size={16} color="#5A6A80" />
-      </TouchableOpacity>
+      {/* Project Search Selector */}
+      <SearchableSelect
+        items={projects.map((p) => ({ id: p.id, name: p.name }))}
+        selectedId={selectedProject?.id || null}
+        onSelect={(item) => setSelectedProject({ id: item.id, name: item.name })}
+        placeholder="Search Project..."
+        icon="folder-outline"
+        iconColor="#F59E0B"
+        label="Project"
+      />
 
       {/* Action Buttons */}
       <View style={styles.actionRow}>
@@ -407,55 +407,7 @@ export default function FieldMediaScreen() {
         />
       )}
 
-      {/* Project Picker Modal */}
-      <Modal visible={showProjectPicker} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Project</Text>
-              <TouchableOpacity onPress={() => setShowProjectPicker(false)}>
-                <Ionicons name="close" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={projects}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.projectItem,
-                    selectedProject?.id === item.id && styles.projectItemActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedProject(item);
-                    setShowProjectPicker(false);
-                  }}
-                >
-                  <Ionicons
-                    name="folder"
-                    size={18}
-                    color={selectedProject?.id === item.id ? "#3B82F6" : "#5A6A80"}
-                  />
-                  <Text
-                    style={[
-                      styles.projectItemText,
-                      selectedProject?.id === item.id && styles.projectItemTextActive,
-                    ]}
-                  >
-                    {item.name}
-                  </Text>
-                  {selectedProject?.id === item.id && (
-                    <Ionicons name="checkmark" size={18} color="#3B82F6" />
-                  )}
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={
-                <Text style={styles.emptySubtitle}>No projects found</Text>
-              }
-            />
-          </View>
-        </View>
-      </Modal>
+
 
       {/* Image Preview Modal */}
       <Modal visible={!!previewImage} transparent animationType="fade">

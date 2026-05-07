@@ -21,6 +21,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import * as ImageManipulator from "expo-image-manipulator";
 import { apiClient } from "@/services/api";
+import SearchableSelect from "@/components/SearchableSelect";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -75,7 +76,6 @@ export default function ExpensesScreen() {
 
   // SELECTED PROJECT — the key state for job-first flow
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
-  const [showProjectSelector, setShowProjectSelector] = useState(false);
 
   // Scan confirmation dialog
   const [showScanConfirm, setShowScanConfirm] = useState(false);
@@ -480,21 +480,17 @@ export default function ExpensesScreen() {
 
   return (
     <View style={styles.container}>
-      {/* ============ STEP 1: PROJECT SELECTOR (always visible at top) ============ */}
-      <View style={styles.projectSelectorWrap}>
-        <TouchableOpacity style={styles.projectSelector} onPress={() => setShowProjectSelector(true)}>
-          <Ionicons name="business-outline" size={18} color="#3B82F6" />
-          <Text style={styles.projectSelectorText} numberOfLines={1}>
-            {selectedProjectId ? getProjectName(selectedProjectId) : "Select a Job / Project..."}
-          </Text>
-          <Ionicons name="chevron-down" size={18} color="#8892A4" />
-        </TouchableOpacity>
-        {selectedProjectId && (
-          <TouchableOpacity style={styles.clearProject} onPress={() => setSelectedProjectId(null)}>
-            <Ionicons name="close-circle" size={20} color="#8892A4" />
-          </TouchableOpacity>
-        )}
-      </View>
+      {/* ============ STEP 1: PROJECT SEARCH SELECTOR ============ */}
+      <SearchableSelect
+        items={projects.filter((p) => p.status !== "cancelled").map((p) => ({ id: p.id, name: p.name }))}
+        selectedId={selectedProjectId}
+        onSelect={(item) => setSelectedProjectId(item.id)}
+        onClear={() => setSelectedProjectId(null)}
+        placeholder="Search Job / Project..."
+        icon="business-outline"
+        iconColor="#3B82F6"
+        label="Job"
+      />
 
       {/* ============ STEP 2: ACTION BUTTONS (camera only shows after project selected) ============ */}
       {selectedProjectId && (
@@ -649,32 +645,7 @@ export default function ExpensesScreen() {
         </View>
       </Modal>
 
-      {/* ============ PROJECT SELECTOR MODAL ============ */}
-      <Modal visible={showProjectSelector} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.pickerModal}>
-            <Text style={styles.pickerModalTitle}>Select Job / Project</Text>
-            <FlatList
-              data={projects.filter((p) => p.status !== "cancelled")}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[styles.pickerItem, selectedProjectId === item.id && styles.pickerItemActive]}
-                  onPress={() => { setSelectedProjectId(item.id); setShowProjectSelector(false); }}
-                >
-                  <Ionicons name="business-outline" size={18} color="#3B82F6" style={{ marginRight: 12 }} />
-                  <Text style={styles.pickerItemText}>{item.name}</Text>
-                  {selectedProjectId === item.id && <Ionicons name="checkmark" size={18} color="#3B82F6" />}
-                </TouchableOpacity>
-              )}
-              style={{ maxHeight: 400 }}
-            />
-            <TouchableOpacity style={styles.pickerClose} onPress={() => setShowProjectSelector(false)}>
-              <Text style={styles.pickerCloseText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+
 
       {/* Delete Confirmation */}
       <Modal visible={deleteConfirmId !== null} transparent animationType="fade">
@@ -848,15 +819,7 @@ const styles = StyleSheet.create({
   emptyText: { color: "#8892A4", fontSize: 16, marginTop: 12, fontWeight: "600" },
   emptySubtext: { color: "#5A6A80", fontSize: 13, marginTop: 4 },
 
-  // Project Selector
-  projectSelectorWrap: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
-  projectSelector: {
-    flex: 1, flexDirection: "row", alignItems: "center",
-    backgroundColor: "#0F1D32", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 14,
-    borderWidth: 1.5, borderColor: "#3B82F6", gap: 8,
-  },
-  projectSelectorText: { flex: 1, color: "#E2E8F0", fontSize: 15, fontWeight: "600" },
-  clearProject: { marginLeft: 8, padding: 4 },
+
 
   // Prompt
   promptWrap: { flex: 1, justifyContent: "center", alignItems: "center", padding: 32 },
