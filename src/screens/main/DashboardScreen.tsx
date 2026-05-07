@@ -12,7 +12,7 @@ import { useLanguageStore } from "@/store/languageStore";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 
-const APP_VERSION = "V. Teste 20";
+const APP_VERSION = "V. Teste 21";
 
 interface DashboardKPIs {
   employees: { total: number; active: number };
@@ -69,7 +69,6 @@ export default function DashboardScreen() {
 
   const fetchDashboard = useCallback(async () => {
     // Fire all requests independently — render as soon as the FIRST one resolves
-    // This eliminates the "slowest request blocks everything" problem
     const statsPromise = apiClient.get<BasicStats>("dashboard.getStats").catch(() => null);
     const kpiPromise = apiClient.get<DashboardKPIs>("reports.dashboardKPIs").catch(() => null);
     const entriesPromise = apiClient.get<ActiveEntry[]>("time.getActiveEntries").catch(() => []);
@@ -77,7 +76,6 @@ export default function DashboardScreen() {
     // Show content as soon as the fast stats endpoint returns
     statsPromise.then((statsData) => {
       if (statsData) setBasicStats(statsData);
-      // Remove loading spinner as soon as first data arrives
       setLoading(false);
     }).catch(() => { setLoading(false); });
 
@@ -162,23 +160,18 @@ export default function DashboardScreen() {
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const dateString = `${dayNames[today.getDay()]}, ${monthNames[today.getMonth()]} ${today.getDate()}`;
 
-  // Calculate today's hours from active entries
-  let todayHours = 0;
-  if (activeEntries.length > 0) {
-    activeEntries.forEach((entry) => {
-      if (entry.clockInTime) {
-        const clockIn = new Date(entry.clockInTime);
-        const now = new Date();
-        const diff = (now.getTime() - clockIn.getTime()) / 3600000;
-        if (diff > 0 && diff < 24) {
-          todayHours += diff;
-        }
-      }
-    });
-  }
-  const displayHours = kpis?.hoursThisMonth || Math.round(todayHours * 10) / 10;
+  // Payroll subtitle - show "Current Week" or period info
+  const getPayrollSubtitle = (): string => {
+    const label = kpis?.payrollPeriodLabel || "open";
+    if (label.startsWith("since:")) return "Open Payroll";
+    if (label.startsWith("weeks:")) {
+      const weeks = parseInt(label.split(":")[1]);
+      return weeks === 1 ? "Current Week" : `${weeks} weeks`;
+    }
+    return "Current Week";
+  };
 
-  // Stats cards matching Android V10 exactly
+  // Stats cards - REDUCED: removed Today's Hours, Pipeline, Contractors
   const statCards = [
     {
       label: "ACTIVE WORKERS",
@@ -186,7 +179,7 @@ export default function DashboardScreen() {
       subtitle: `${basicStats?.totalEmployees || kpis?.employees?.total || 0} total`,
       icon: "people" as const,
       color: "#3B82F6",
-      borderColor: "#3B82F6",
+      gradientStart: "#1E3A5F",
       screen: "ActiveWorkers",
       live: false,
     },
@@ -196,27 +189,17 @@ export default function DashboardScreen() {
       subtitle: "workers active",
       icon: "pulse" as const,
       color: "#10B981",
-      borderColor: "#10B981",
+      gradientStart: "#0D3B2F",
       live: true,
       screen: "TimeTracking",
     },
     {
-      label: "TODAY'S HOURS",
-      value: `${displayHours}`,
-      subtitle: "Total",
-      icon: "time" as const,
-      color: "#6366F1",
-      borderColor: "#6366F1",
-      screen: "TimeTracking",
-      live: false,
-    },
-    {
       label: "PAYROLL",
       value: formatCurrency(kpis?.payrollThisMonth || 0),
-      subtitle: "This Month",
+      subtitle: getPayrollSubtitle(),
       icon: "cash" as const,
       color: "#EF4444",
-      borderColor: "#EF4444",
+      gradientStart: "#3B1515",
       screen: "Payroll",
       live: false,
     },
@@ -226,17 +209,7 @@ export default function DashboardScreen() {
       subtitle: formatCurrency(kpis?.projects?.activeBudget || 0),
       icon: "folder-open" as const,
       color: "#F59E0B",
-      borderColor: "#F59E0B",
-      screen: "Projects",
-      live: false,
-    },
-    {
-      label: "PIPELINE",
-      value: formatCurrency(kpis?.pipeline?.total || 0),
-      subtitle: `${kpis?.pipeline?.approved || 0} approved · ${kpis?.pipeline?.pending || 0} pending`,
-      icon: "layers" as const,
-      color: "#A855F7",
-      borderColor: "#A855F7",
+      gradientStart: "#3B2E0A",
       screen: "Projects",
       live: false,
     },
@@ -246,18 +219,8 @@ export default function DashboardScreen() {
       subtitle: `job${todayScheduleCount !== 1 ? "s" : ""} today`,
       icon: "calendar" as const,
       color: "#14B8A6",
-      borderColor: "#14B8A6",
+      gradientStart: "#0A3330",
       screen: "JobSchedule",
-      live: false,
-    },
-    {
-      label: "CONTRACTORS",
-      value: String(kpis?.contractors || 0),
-      subtitle: "Active",
-      icon: "construct" as const,
-      color: "#F97316",
-      borderColor: "#F97316",
-      screen: "ActiveWorkers",
       live: false,
     },
   ];
@@ -284,26 +247,40 @@ export default function DashboardScreen() {
     >
       {/* Welcome Header */}
       <View style={styles.welcomeSection}>
-        <Text style={styles.crewLabel}>CREW</Text>
-        <View style={styles.welcomeRow}>
-          <Text style={styles.welcomeText}>{labels.welcomeBack}</Text>
-          <Text style={styles.userNameHighlight}>{user?.name || "User"}</Text>
-          <Text style={styles.versionLabel}> {APP_VERSION}</Text>
+        <View style={styles.welcomeHeaderRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.crewLabel}>CREW</Text>
+            <View style={styles.welcomeRow}>
+              <Text style={styles.welcomeText}>{labels.welcomeBack}</Text>
+              <Text style={styles.userNameHighlight}>{(user?.name || "User").split(" ")[0]}</Text>
+            </View>
+            <Text style={styles.dateText}>{dateString}</Text>
+          </View>
+          {/* Refresh button - discrete */}
+          <TouchableOpacity
+            style={styles.refreshBtn}
+            onPress={onRefresh}
+            activeOpacity={0.6}
+          >
+            <Ionicons name="refresh" size={18} color="#5A6A80" />
+          </TouchableOpacity>
         </View>
-        <Text style={styles.dateText}>{dateString}</Text>
+        <Text style={styles.versionLabel}>{APP_VERSION}</Text>
       </View>
 
-      {/* 8 Stat Cards - 2x4 grid - ALL tappable */}
+      {/* Stat Cards - Modern design with gradient backgrounds */}
       <View style={styles.statsGrid}>
         {statCards.map((card, idx) => (
           <TouchableOpacity
             key={idx}
-            style={[styles.statCard, { borderColor: card.borderColor }]}
+            style={[styles.statCard, { borderColor: card.color + "60", backgroundColor: card.gradientStart }]}
             onPress={() => navigation.navigate(card.screen)}
             activeOpacity={0.7}
           >
             <View style={styles.statCardTop}>
-              <Ionicons name={card.icon} size={16} color={card.color} />
+              <View style={[styles.statIconWrap, { backgroundColor: card.color + "25" }]}>
+                <Ionicons name={card.icon} size={14} color={card.color} />
+              </View>
               <Text style={[styles.statCardLabel, { color: card.color }]}>{card.label}</Text>
               {card.live && (
                 <View style={styles.liveBadge}>
@@ -313,7 +290,7 @@ export default function DashboardScreen() {
               )}
             </View>
             <Text style={styles.statCardValue}>{card.value}</Text>
-            <Text style={[styles.statCardSubtitle, { color: card.color }]}>{card.subtitle}</Text>
+            <Text style={[styles.statCardSubtitle, { color: card.color + "CC" }]}>{card.subtitle}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -399,26 +376,41 @@ const styles = StyleSheet.create({
 
   // Welcome
   welcomeSection: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
+  welcomeHeaderRow: { flexDirection: "row", alignItems: "flex-start" },
   crewLabel: { color: "#3B82F6", fontSize: 11, fontWeight: "700", letterSpacing: 1.5, marginBottom: 4 },
   welcomeRow: { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap" },
   welcomeText: { color: "#FFFFFF", fontSize: 22, fontWeight: "700" },
-  userNameHighlight: { color: "#3B82F6", fontSize: 22, fontWeight: "700" },
-  versionLabel: { color: "#EF4444", fontSize: 12, fontWeight: "700", marginLeft: 8 },
+  userNameHighlight: { color: "#3B82F6", fontSize: 22, fontWeight: "700", marginLeft: 6 },
+  versionLabel: { color: "#EF4444", fontSize: 11, fontWeight: "600", marginTop: 4 },
   dateText: { color: "#8892A4", fontSize: 13, marginTop: 4 },
-
-  // Stats Grid - matching Android V10 with colored borders
-  statsGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, gap: 10, marginBottom: 20 },
-  statCard: {
-    backgroundColor: "#0F1D32",
-    borderRadius: 4,
-    padding: 14,
-    width: CARD_WIDTH,
-    borderWidth: 1.5,
+  refreshBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: "#0F1D32", borderWidth: 1, borderColor: "#1A2A40",
+    justifyContent: "center", alignItems: "center",
+    marginTop: 4,
   },
-  statCardTop: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
+
+  // Stats Grid - Modern cards with rounded corners and gradient bg
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, gap: 12, marginBottom: 24 },
+  statCard: {
+    borderRadius: 16,
+    padding: 16,
+    width: CARD_WIDTH,
+    borderWidth: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  statCardTop: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
+  statIconWrap: {
+    width: 26, height: 26, borderRadius: 8,
+    justifyContent: "center", alignItems: "center",
+  },
   statCardLabel: { fontSize: 10, fontWeight: "700", letterSpacing: 0.5, flex: 1 },
   statCardValue: { color: "#FFFFFF", fontSize: 28, fontWeight: "800", marginBottom: 4 },
-  statCardSubtitle: { fontSize: 11, fontWeight: "500" },
+  statCardSubtitle: { fontSize: 11, fontWeight: "600" },
   liveBadge: { flexDirection: "row", alignItems: "center", gap: 3 },
   liveDotSmall: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#10B981" },
   liveText: { color: "#10B981", fontSize: 9, fontWeight: "700" },
@@ -429,24 +421,24 @@ const styles = StyleSheet.create({
   quickActionsRow: { flexDirection: "row", justifyContent: "space-between" },
   quickActionBtn: { alignItems: "center", width: (width - 64) / 4 },
   quickActionIcon: {
-    width: 48, height: 48, borderRadius: 24,
+    width: 48, height: 48, borderRadius: 14,
     justifyContent: "center", alignItems: "center", marginBottom: 6,
   },
   quickActionLabel: { color: "#E2E8F0", fontSize: 11, fontWeight: "500", textAlign: "center" },
 
   // Currently Working
   emptyCard: {
-    backgroundColor: "#0F1D32", borderRadius: 10, padding: 24,
+    backgroundColor: "#0F1D32", borderRadius: 14, padding: 24,
     alignItems: "center", gap: 8, borderWidth: 1, borderColor: "#1A2A40",
   },
   emptyText: { color: "#5A6A80", fontSize: 13 },
   workerCard: {
-    backgroundColor: "#0F1D32", borderRadius: 10, padding: 12,
+    backgroundColor: "#0F1D32", borderRadius: 14, padding: 12,
     marginBottom: 8, flexDirection: "row", alignItems: "center",
     borderWidth: 1, borderColor: "#1A2A40",
   },
   workerAvatar: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 36, height: 36, borderRadius: 12,
     backgroundColor: "#1E3A5F", justifyContent: "center", alignItems: "center", marginRight: 12,
   },
   workerInitial: { color: "#3B82F6", fontSize: 14, fontWeight: "700" },
@@ -462,7 +454,7 @@ const styles = StyleSheet.create({
   // Project Status
   projectStatusRow: { flexDirection: "row", gap: 10 },
   projectStatusCard: {
-    flex: 1, backgroundColor: "#0F1D32", borderRadius: 10,
+    flex: 1, backgroundColor: "#0F1D32", borderRadius: 14,
     padding: 16, alignItems: "center", borderWidth: 1, borderColor: "#1A2A40",
   },
   projectStatusValue: { fontSize: 24, fontWeight: "700" },
