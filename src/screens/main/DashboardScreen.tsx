@@ -12,7 +12,7 @@ import { useLanguageStore } from "@/store/languageStore";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 
-const APP_VERSION = "V. Teste 21";
+const APP_VERSION = "v1.0.1";
 
 interface DashboardKPIs {
   employees: { total: number; active: number };
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   welcomeRow: { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap" },
   welcomeText: { color: "#FFFFFF", fontSize: 22, fontWeight: "700" },
   userNameHighlight: { color: "#3B82F6", fontSize: 22, fontWeight: "700", marginLeft: 6 },
-  versionLabel: { color: "#EF4444", fontSize: 11, fontWeight: "600", marginTop: 4 },
+  versionLabel: { color: "#5A6A80", fontSize: 11, fontWeight: "500", marginTop: 4 },
   dateText: { color: "#8892A4", fontSize: 13, marginTop: 4 },
   refreshBtn: {
     width: 36, height: 36, borderRadius: 18,
