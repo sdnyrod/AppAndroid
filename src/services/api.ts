@@ -178,6 +178,35 @@ async function apiRequest<T>(
 // =============================================================================
 
 /**
+ * Build superjson-compatible input encoding.
+ * Detects Date instances in the input and adds the required `meta` field
+ * so tRPC's superjson transformer deserializes them correctly.
+ */
+function buildSuperjsonInput(input: unknown): string {
+  if (!input || typeof input !== 'object') {
+    return JSON.stringify({ json: input });
+  }
+  const json: Record<string, unknown> = {};
+  const dateKeys: string[] = [];
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+    if (value instanceof Date) {
+      json[key] = value.toISOString();
+      dateKeys.push(key);
+    } else {
+      json[key] = value;
+    }
+  }
+  if (dateKeys.length === 0) {
+    return JSON.stringify({ json: input });
+  }
+  const meta: Record<string, unknown> = { values: {} };
+  for (const key of dateKeys) {
+    (meta.values as Record<string, string[]>)[key] = ["Date"];
+  }
+  return JSON.stringify({ json, meta });
+}
+
+/**
  * Execute a tRPC query (GET request).
  * Unwraps the tRPC envelope: { result: { data: { json: ... } } }
  */
@@ -186,7 +215,7 @@ export async function trpcQuery<T = unknown>(
   input?: unknown
 ): Promise<ApiResponse<T>> {
   const params = input
-    ? `?input=${encodeURIComponent(JSON.stringify({ json: input }))}`
+    ? `?input=${encodeURIComponent(buildSuperjsonInput(input))}`
     : "";
 
   const response = await apiRequest<Record<string, unknown>>(
@@ -217,7 +246,7 @@ export async function trpcMutation<T = unknown>(
     `/api/trpc/${procedure}`,
     {
       method: "POST",
-      body: JSON.stringify(input !== undefined ? { json: input } : {}),
+      body: input !== undefined ? buildSuperjsonInput(input) : JSON.stringify({}),
     }
   );
 
