@@ -133,13 +133,12 @@ export default function DrawerContent({ navigation }: DrawerContentComponentProp
   const handleToggleGroup = useCallback((groupId: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(groupId)) {
-        next.delete(groupId);
-      } else {
-        next.add(groupId);
+      // If already open, close it
+      if (prev.has(groupId)) {
+        return new Set();
       }
-      return next;
+      // Otherwise, close all others and open only this one (true accordion)
+      return new Set([groupId]);
     });
   }, []);
 
