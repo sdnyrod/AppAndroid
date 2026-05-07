@@ -76,7 +76,8 @@
         {
           "faceIDPermission": "CREW uses Face ID for quick and secure login."
         }
-      ]
+      ],
+      "./plugins/withAdiRegistration"
     ],
     "extra": {
       "eas": {
