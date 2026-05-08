@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { apiClient } from "@/services/api";
 
 const { width } = Dimensions.get("window");
-const DAY_WIDTH = (width - 32) / 7;
+const DAY_WIDTH = Math.floor((width - 32) / 7);
 
 interface ScheduleEvent {
   id: number;
