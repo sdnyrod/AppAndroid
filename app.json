@@ -2,7 +2,7 @@
   "expo": {
     "name": "CREW",
     "slug": "crew-app",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -21,7 +21,7 @@
         "backgroundColor": "#0A1628"
       },
       "package": "com.crewcwm.app",
-      "versionCode": 2,
+      "versionCode": 4,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
@@ -51,7 +51,8 @@
         "NSPhotoLibraryUsageDescription": "CREW needs photo library access to upload existing photos and videos to projects.",
         "NSMicrophoneUsageDescription": "CREW needs microphone access to record videos with audio.",
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "4"
     },
     "plugins": [
       "expo-secure-store",
@@ -77,7 +78,17 @@
           "faceIDPermission": "CREW uses Face ID for quick and secure login."
         }
       ],
-      "./plugins/withAdiRegistration"
+      "./plugins/withAdiRegistration",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0"
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
