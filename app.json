@@ -53,6 +53,9 @@
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": ["remote-notification"]
       },
+      "entitlements": {
+        "aps-environment": "production"
+      },
       "buildNumber": "5"
     },
     "plugins": [
