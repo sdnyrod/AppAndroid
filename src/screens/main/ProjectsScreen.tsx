@@ -16,6 +16,7 @@ interface Project {
 }
 
 export default function ProjectsScreen() {
+  const { t } = useLanguageStore();
   const navigation = useNavigation<any>();
   const labels = useLanguageStore((s) => s.labels);
   const [projects, setProjects] = useState<Project[]>([]);

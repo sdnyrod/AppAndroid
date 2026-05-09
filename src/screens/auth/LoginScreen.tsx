@@ -18,6 +18,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { useAuthStore } from "@/store/authStore";
 import { apiClient } from "@/services/api";
+import { useLanguageStore } from "@/store/languageStore";
 
 // Storage keys
 const SAVED_EMAIL_KEY = "crew_saved_email";
@@ -26,6 +27,7 @@ const SAVED_CREDENTIALS_KEY = "crew_saved_credentials";
 const JUST_LOGGED_OUT_KEY = "crew_just_logged_out";
 
 export default function LoginScreen() {
+  const { t } = useLanguageStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -129,7 +131,7 @@ export default function LoginScreen() {
     try {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: `Sign in with ${biometricType}`,
-        cancelLabel: "Use Password",
+        cancelLabel: t("auth.password"),
         disableDeviceFallback: false,
       });
 
@@ -145,8 +147,8 @@ export default function LoginScreen() {
           }
         } else {
           Alert.alert(
-            "No Saved Credentials",
-            "Please sign in with your password first to enable biometric login."
+            t("auth.noSavedCredentials"),
+            t("auth.noSavedCredentialsDesc")
           );
           // Disable biometric since no credentials
           await AsyncStorage.removeItem(BIOMETRIC_ENABLED_KEY);
@@ -164,11 +166,11 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email.trim()) {
-      useAuthStore.setState({ error: "Please enter your email address" });
+      useAuthStore.setState({ error: t("auth.enterEmail") });
       return;
     }
     if (!password.trim()) {
-      useAuthStore.setState({ error: "Please enter your password" });
+      useAuthStore.setState({ error: t("auth.enterPassword") });
       return;
     }
     clearError();
@@ -209,9 +211,9 @@ export default function LoginScreen() {
       `Enable ${biometricType}?`,
       `Would you like to use ${biometricType} for faster sign-in next time?`,
       [
-        { text: "Not Now", style: "cancel" },
+        { text: t("auth.notNow"), style: "cancel" },
         {
-          text: "Enable",
+          text: t("auth.enable"),
           onPress: async () => {
             await AsyncStorage.setItem(BIOMETRIC_ENABLED_KEY, "true");
             setBiometricEnabled(true);
@@ -229,15 +231,15 @@ export default function LoginScreen() {
     setChangeError(null);
 
     if (newPassword.length < 8) {
-      setChangeError("New password must be at least 8 characters");
+      setChangeError(t("auth.passwordTooShort"));
       return;
     }
     if (newPassword !== confirmNewPassword) {
-      setChangeError("Passwords do not match");
+      setChangeError(t("auth.passwordsMismatch"));
       return;
     }
     if (newPassword === (pendingPassword || password)) {
-      setChangeError("New password must be different from the temporary password");
+      setChangeError(t("auth.passwordSameAsOld"));
       return;
     }
 
@@ -264,10 +266,10 @@ export default function LoginScreen() {
           await AsyncStorage.setItem(SAVED_EMAIL_KEY, pendingEmail || email.trim());
         }
       } else {
-        setChangeError(result.error || "Failed to change password");
+        setChangeError(result.error || t("auth.failedChangePassword"));
       }
     } catch (err: any) {
-      setChangeError(err?.message || "Network error. Please try again.");
+      setChangeError(err?.message || t("auth.connectionError"));
     } finally {
       setChangingPassword(false);
     }
@@ -289,9 +291,9 @@ export default function LoginScreen() {
               <View style={styles.keyIconWrap}>
                 <Ionicons name="key" size={40} color="#F59E0B" />
               </View>
-              <Text style={styles.appName}>Change Password</Text>
+              <Text style={styles.appName}>{t("auth.changePassword")}</Text>
               <Text style={styles.subtitle}>
-                You must change your temporary password before accessing the system.
+                {t("auth.mustChangePassword")}
               </Text>
             </View>
 
@@ -309,7 +311,7 @@ export default function LoginScreen() {
                   style={styles.input}
                   value={newPassword}
                   onChangeText={setNewPassword}
-                  placeholder="New Password (min 8 characters)"
+                  placeholder={t("auth.newPassword")}
                   placeholderTextColor="#5A6A80"
                   secureTextEntry={!showNewPassword}
                   autoCapitalize="none"
@@ -330,7 +332,7 @@ export default function LoginScreen() {
                   style={styles.input}
                   value={confirmNewPassword}
                   onChangeText={setConfirmNewPassword}
-                  placeholder="Confirm New Password"
+                  placeholder={t("auth.confirmNewPassword")}
                   placeholderTextColor="#5A6A80"
                   secureTextEntry={!showNewPassword}
                   autoCapitalize="none"
@@ -346,7 +348,7 @@ export default function LoginScreen() {
                 {changingPassword ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.buttonText}>Update Password & Sign In</Text>
+                  <Text style={styles.buttonText}>{t("auth.updateAndSignIn")}</Text>
                 )}
               </TouchableOpacity>
 
@@ -360,7 +362,7 @@ export default function LoginScreen() {
                 }}
               >
                 <Ionicons name="arrow-back" size={16} color="#5A6A80" />
-                <Text style={styles.backButtonText}>Back to Login</Text>
+                <Text style={styles.backButtonText}>{t("auth.backToLogin")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -388,7 +390,7 @@ export default function LoginScreen() {
               resizeMode="contain"
             />
             <Text style={styles.appName}>CREW</Text>
-            <Text style={styles.subtitle}>Construction Workforce Management</Text>
+            <Text style={styles.subtitle}>{t("auth.constructionWorkforce")}</Text>
           </View>
 
           {/* Form */}
@@ -407,7 +409,7 @@ export default function LoginScreen() {
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="Email"
+                placeholder={t("auth.email")}
                 placeholderTextColor="#5A6A80"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -422,7 +424,7 @@ export default function LoginScreen() {
                 style={styles.input}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="Password"
+                placeholder={t("auth.password")}
                 placeholderTextColor="#5A6A80"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
@@ -446,7 +448,7 @@ export default function LoginScreen() {
                 <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
                   {rememberMe && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
                 </View>
-                <Text style={styles.rememberText}>Remember me</Text>
+                <Text style={styles.rememberText}>{t("auth.rememberMe")}</Text>
               </TouchableOpacity>
             </View>
 
@@ -459,7 +461,7 @@ export default function LoginScreen() {
               {isLoading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.buttonText}>Sign In</Text>
+                <Text style={styles.buttonText}>{t("auth.signIn")}</Text>
               )}
             </TouchableOpacity>
 
@@ -475,7 +477,7 @@ export default function LoginScreen() {
                   size={22}
                   color="#3B82F6"
                 />
-                <Text style={styles.biometricButtonText}>Sign in with {biometricType}</Text>
+                <Text style={styles.biometricButtonText}>{t("auth.signInWithBiometric", { type: biometricType })}</Text>
               </TouchableOpacity>
             )}
 

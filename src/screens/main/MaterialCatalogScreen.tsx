@@ -1,13 +1,15 @@
 import React from "react";
 import GenericScreen from "./GenericScreen";
 
+import { useLanguageStore } from "@/store/languageStore";
 export default function MaterialCatalogScreen() {
+  const { t } = useLanguageStore();
   return (
     <GenericScreen
-      title="Material Catalog"
+      title={t("inventory.materialCatalog")}
       icon="cube-outline"
       procedure="materials.list"
-      emptyMessage="No Material Catalog data found"
+      emptyMessage={t("inventory.noMaterials")}
     />
   );
 }

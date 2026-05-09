@@ -8,6 +8,7 @@ import { apiClient } from "@/services/api";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import SearchableSelect from "@/components/SearchableSelect";
 
+import { useLanguageStore } from "@/store/languageStore";
 type JobCostRouteParams = {
   JobCost: {
     projectId?: number;
@@ -104,6 +105,7 @@ function normalizeApiResponse(raw: Record<string, any>): NormalizedCostData {
 }
 
 export default function JobCostScreen() {
+  const { t } = useLanguageStore();
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<JobCostRouteParams, "JobCost">>();
   const initialProjectId = route.params?.projectId ?? null;
@@ -193,10 +195,10 @@ export default function JobCostScreen() {
         selectedId={selectedProjectId}
         onSelect={(item) => setSelectedProjectId(item.id)}
         onClear={() => setSelectedProjectId(null)}
-        placeholder="Search Job / Project..."
+        placeholder={t("time.searchProject")}
         icon="business-outline"
         iconColor="#3B82F6"
-        label="Job"
+        label={t("common.job")}
       />
 
       {loadingCost ? (

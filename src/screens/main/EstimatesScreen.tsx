@@ -14,6 +14,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { apiClient } from "@/services/api";
 
+import { useLanguageStore } from "@/store/languageStore";
 interface EstimateItem {
   estimate: {
     id: number;
@@ -104,6 +105,7 @@ function formatDate(dateStr?: string | null): string {
 }
 
 export default function EstimatesScreen() {
+  const { t } = useLanguageStore();
   const [estimates, setEstimates] = useState<EstimateItem[]>([]);
   const [filtered, setFiltered] = useState<EstimateItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -181,7 +183,7 @@ export default function EstimatesScreen() {
         <Ionicons name="search" size={18} color="#5A6A80" />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search estimates..."
+          placeholder={t("estimates.search")}
           placeholderTextColor="#5A6A80"
           value={search}
           onChangeText={setSearch}

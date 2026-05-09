@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker, PROVIDER_GOOGLE, PROVIDER_DEFAULT } from "react-native-maps";
 import { apiClient } from "@/services/api";
 
+import { useLanguageStore } from "@/store/languageStore";
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -164,6 +165,7 @@ const markerStyles = StyleSheet.create({
 // =============================================================================
 
 export default function LiveMapScreen() {
+  const { t } = useLanguageStore();
   const [workers, setWorkers] = useState<WorkerLocation[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectIds, setActiveProjectIds] = useState<Set<number>>(new Set());
@@ -201,7 +203,7 @@ export default function LiveMapScreen() {
         });
       }
       setActiveProjectIds(activeIds);
-      setLastUpdate("Just now");
+      setLastUpdate(t("common.justNow"));
 
       // Set initial map region based on tenant location
       if (tenantInfo && !tenantRegion) {

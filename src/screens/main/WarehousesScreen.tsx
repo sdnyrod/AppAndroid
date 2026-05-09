@@ -1,13 +1,15 @@
 import React from "react";
 import GenericScreen from "./GenericScreen";
 
+import { useLanguageStore } from "@/store/languageStore";
 export default function WarehousesScreen() {
+  const { t } = useLanguageStore();
   return (
     <GenericScreen
-      title="Warehouses"
+      title={t("inventory.warehouses")}
       icon="business-outline"
       procedure="warehouses.list"
-      emptyMessage="No Warehouses data found"
+      emptyMessage={t("inventory.noWarehouses")}
     />
   );
 }

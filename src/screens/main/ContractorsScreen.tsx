@@ -1,13 +1,15 @@
 import React from "react";
 import GenericScreen from "./GenericScreen";
 
+import { useLanguageStore } from "@/store/languageStore";
 export default function ContractorsScreen() {
+  const { t } = useLanguageStore();
   return (
     <GenericScreen
-      title="Contractors Hub"
+      title={t("common.featureComingSoon")}
       icon="handshake-outline"
       procedure="users.getEmployees"
-      emptyMessage="No Contractors Hub data found"
+      emptyMessage={t("common.featureComingSoon")}
     />
   );
 }

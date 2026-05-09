@@ -1,13 +1,15 @@
 import React from "react";
 import GenericScreen from "./GenericScreen";
 
+import { useLanguageStore } from "@/store/languageStore";
 export default function DailyLogsScreen() {
+  const { t } = useLanguageStore();
   return (
     <GenericScreen
-      title="Daily Logs"
+      title={t("dailyLogs.title")}
       icon="mic-outline"
       procedure="dailyLog.getAll"
-      emptyMessage="No Daily Logs data found"
+      emptyMessage={t("dailyLogs.noLogs")}
     />
   );
 }

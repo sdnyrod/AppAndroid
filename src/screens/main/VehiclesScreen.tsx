@@ -1,13 +1,15 @@
 import React from "react";
 import GenericScreen from "./GenericScreen";
 
+import { useLanguageStore } from "@/store/languageStore";
 export default function VehiclesScreen() {
+  const { t } = useLanguageStore();
   return (
     <GenericScreen
-      title="Vehicles"
+      title={t("fleet.vehicles")}
       icon="car-outline"
       procedure="trucks.list"
-      emptyMessage="No Vehicles data found"
+      emptyMessage={t("fleet.noVehicles")}
     />
   );
 }

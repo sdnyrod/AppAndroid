@@ -5,7 +5,9 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { apiClient } from "@/services/api";
 
+import { useLanguageStore } from "@/store/languageStore";
 export default function EmployeesScreen() {
+  const { t } = useLanguageStore();
   const [employees, setEmployees] = useState<any[]>([]);
   const [filtered, setFiltered] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +45,7 @@ export default function EmployeesScreen() {
     <View style={styles.container}>
       <View style={styles.searchBar}>
         <Ionicons name="search" size={18} color="#5A6A80" />
-        <TextInput style={styles.searchInput} placeholder="Search employees..." placeholderTextColor="#5A6A80" value={search} onChangeText={setSearch} />
+        <TextInput style={styles.searchInput} placeholder={t("employees.search")} placeholderTextColor="#5A6A80" value={search} onChangeText={setSearch} />
       </View>
       <FlatList
         data={filtered}

@@ -1,13 +1,15 @@
 import React from "react";
 import GenericScreen from "./GenericScreen";
 
+import { useLanguageStore } from "@/store/languageStore";
 export default function PurchaseOrdersScreen() {
+  const { t } = useLanguageStore();
   return (
     <GenericScreen
-      title="Purchase Orders"
+      title={t("inventory.purchaseOrders")}
       icon="cart-outline"
       procedure="purchaseOrders.list"
-      emptyMessage="No Purchase Orders data found"
+      emptyMessage={t("inventory.noPurchaseOrders")}
     />
   );
 }

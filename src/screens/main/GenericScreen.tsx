@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { apiClient } from "@/services/api";
 
+import { useLanguageStore } from "@/store/languageStore";
 interface GenericScreenProps {
   title: string;
   icon: string;
@@ -27,9 +28,10 @@ export default function GenericScreen({
   title,
   icon,
   procedure,
-  emptyMessage = "No data available",
+  emptyMessage = t("common.noData"),
   renderItem,
 }: GenericScreenProps) {
+  const { t } = useLanguageStore();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -53,7 +55,7 @@ export default function GenericScreen({
         setData([]);
       }
     } catch (e: any) {
-      setError(e?.message || "Failed to load data");
+      setError(e?.message || t("common.networkError"));
     } finally {
       setLoading(false);
       setRefreshing(false);

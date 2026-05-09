@@ -1,13 +1,15 @@
 import React from "react";
 import GenericScreen from "./GenericScreen";
 
+import { useLanguageStore } from "@/store/languageStore";
 export default function DepartmentsScreen() {
+  const { t } = useLanguageStore();
   return (
     <GenericScreen
-      title="Departments"
+      title={t("settings.departments")}
       icon="business-outline"
       procedure="departments.list"
-      emptyMessage="No Departments data found"
+      emptyMessage={t("settings.noDepartments")}
     />
   );
 }

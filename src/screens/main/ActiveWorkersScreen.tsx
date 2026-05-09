@@ -6,6 +6,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { apiClient } from "@/services/api";
 
+import { useLanguageStore } from "@/store/languageStore";
 interface ActiveWorker {
   id: number;
   name: string;
@@ -31,6 +32,7 @@ function getElapsedTime(clockInISO: string): string {
 }
 
 export default function ActiveWorkersScreen() {
+  const { t } = useLanguageStore();
   const [workers, setWorkers] = useState<ActiveWorker[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

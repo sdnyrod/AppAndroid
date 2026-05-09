@@ -1,13 +1,15 @@
 import React from "react";
 import GenericScreen from "./GenericScreen";
 
+import { useLanguageStore } from "@/store/languageStore";
 export default function ReferralsScreen() {
+  const { t } = useLanguageStore();
   return (
     <GenericScreen
-      title="Referral Program"
+      title={t("referrals.title")}
       icon="gift-outline"
       procedure="referrals.listAll"
-      emptyMessage="No Referral Program data found"
+      emptyMessage={t("referrals.noData")}
     />
   );
 }

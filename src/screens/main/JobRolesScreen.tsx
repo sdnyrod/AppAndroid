@@ -1,13 +1,15 @@
 import React from "react";
 import GenericScreen from "./GenericScreen";
 
+import { useLanguageStore } from "@/store/languageStore";
 export default function JobRolesScreen() {
+  const { t } = useLanguageStore();
   return (
     <GenericScreen
-      title="Job Roles"
+      title={t("settings.jobRoles")}
       icon="briefcase-outline"
       procedure="employeeRoles.list"
-      emptyMessage="No Job Roles data found"
+      emptyMessage={t("settings.noJobRoles")}
     />
   );
 }

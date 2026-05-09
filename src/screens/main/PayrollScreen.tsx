@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { apiClient } from "@/services/api";
 
+import { useLanguageStore } from "@/store/languageStore";
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -145,6 +146,7 @@ function DateRangePicker({ startDate, endDate, onPrevWeek, onNextWeek, onCurrent
 // MAIN COMPONENT
 // =============================================================================
 export default function PayrollScreen() {
+  const { t } = useLanguageStore();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -208,10 +210,10 @@ export default function PayrollScreen() {
         setReport(data);
       } else {
         setReport(null);
-        setError("Failed to load payroll data");
+        setError(t("payroll.failedLoad"));
       }
     } catch (e: any) {
-      setError(e?.message || "Failed to load payroll data");
+      setError(e?.message || t("payroll.failedLoad"));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -388,7 +390,7 @@ export default function PayrollScreen() {
               <View style={styles.employeeInfo}>
                 <Text style={styles.employeeName} numberOfLines={1}>{emp.name}</Text>
                 <Text style={styles.employeeMeta}>
-                  {emp.payType === "hourly" ? "Hourly" : emp.payType === "daily" ? "Daily" : emp.payType === "weekly" ? "Weekly" : emp.payType}
+                  {emp.payType === "hourly" ? t("employees.hourly") : emp.payType === "daily" ? "Daily" : emp.payType === "weekly" ? t("payroll.weekly") : emp.payType}
                   {" · "}{emp.daysWorked} day{emp.daysWorked !== 1 ? "s" : ""}
                 </Text>
               </View>

@@ -1,13 +1,15 @@
 import React from "react";
 import GenericScreen from "./GenericScreen";
 
+import { useLanguageStore } from "@/store/languageStore";
 export default function InventoryItemsScreen() {
+  const { t } = useLanguageStore();
   return (
     <GenericScreen
-      title="Inventory Items"
+      title={t("inventory.items")}
       icon="layers-outline"
       procedure="inventory.list"
-      emptyMessage="No Inventory Items data found"
+      emptyMessage={t("inventory.noItems")}
     />
   );
 }

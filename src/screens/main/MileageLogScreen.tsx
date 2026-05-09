@@ -1,13 +1,15 @@
 import React from "react";
 import GenericScreen from "./GenericScreen";
 
+import { useLanguageStore } from "@/store/languageStore";
 export default function MileageLogScreen() {
+  const { t } = useLanguageStore();
   return (
     <GenericScreen
-      title="Mileage Log"
+      title={t("fleet.mileageLog")}
       icon="speedometer-outline"
       procedure="trucks.list"
-      emptyMessage="No Mileage Log data found"
+      emptyMessage={t("fleet.noMileage")}
     />
   );
 }

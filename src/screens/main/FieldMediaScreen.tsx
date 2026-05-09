@@ -20,6 +20,7 @@ import { apiClient, getStoredToken } from "@/services/api";
 import { API_BASE_URL } from "@/constants/config";
 import SearchableSelect from "@/components/SearchableSelect";
 
+import { useLanguageStore } from "@/store/languageStore";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const THUMB_SIZE = (SCREEN_WIDTH - 48 - 8) / 3; // 3 columns with gaps
 
@@ -40,6 +41,7 @@ interface Project {
 }
 
 export default function FieldMediaScreen() {
+  const { t } = useLanguageStore();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
@@ -113,7 +115,7 @@ export default function FieldMediaScreen() {
   // Upload file to backend via multipart/form-data
   const uploadFiles = async (files: { uri: string; name: string; type: string }[]) => {
     if (!selectedProject) {
-      Alert.alert("Error", "Please select a project first");
+      Alert.alert(t("common.error"), "Please select a project first");
       return;
     }
 
@@ -156,10 +158,10 @@ export default function FieldMediaScreen() {
         Alert.alert("Success", `${successCount} file(s) uploaded successfully`);
         fetchMedia();
       } else {
-        Alert.alert("Error", "All uploads failed. Please try again.");
+        Alert.alert(t("common.error"), "All uploads failed. Please try again.");
       }
     } catch (err: any) {
-      Alert.alert("Error", err?.message || "Upload failed. Check your connection.");
+      Alert.alert(t("common.error"), err?.message || "Upload failed. Check your connection.");
     } finally {
       setUploading(false);
       setUploadProgress("");
@@ -268,7 +270,7 @@ export default function FieldMediaScreen() {
       }
     } catch (err: any) {
       if (err?.code !== "DOCUMENT_PICKER_CANCELED") {
-        Alert.alert("Error", "Failed to pick document");
+        Alert.alert(t("common.error"), "Failed to pick document");
       }
     }
   };
@@ -278,14 +280,14 @@ export default function FieldMediaScreen() {
     Alert.alert("Delete", `Delete "${item.caption || item.fileName}"?`, [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Delete",
+        text: t("common.delete"),
         style: "destructive",
         onPress: async () => {
           const result = await apiClient.post("fieldMedia.delete", { id: item.id });
           if (result.ok) {
             setMediaItems((prev) => prev.filter((m) => m.id !== item.id));
           } else {
-            Alert.alert("Error", "Failed to delete");
+            Alert.alert(t("common.error"), "Failed to delete");
           }
         },
       },
@@ -333,38 +335,38 @@ export default function FieldMediaScreen() {
         items={projects.map((p) => ({ id: p.id, name: p.name }))}
         selectedId={selectedProject?.id || null}
         onSelect={(item) => setSelectedProject({ id: item.id, name: item.name })}
-        placeholder="Search Project..."
+        placeholder={t("time.searchProject")}
         icon="folder-outline"
         iconColor="#F59E0B"
-        label="Project"
+        label={t("common.project")}
       />
 
       {/* Action Buttons */}
       <View style={styles.actionRow}>
         <ActionButton
           icon="camera"
-          label="Photo"
+          label={t("fieldMedia.photo")}
           color="#10B981"
           onPress={handleTakePhoto}
           disabled={uploading || !selectedProject}
         />
         <ActionButton
           icon="videocam"
-          label="Video"
+          label={t("fieldMedia.video")}
           color="#F59E0B"
           onPress={handleRecordVideo}
           disabled={uploading || !selectedProject}
         />
         <ActionButton
           icon="images"
-          label="Gallery"
+          label={t("fieldMedia.gallery")}
           color="#8B5CF6"
           onPress={handlePickFromGallery}
           disabled={uploading || !selectedProject}
         />
         <ActionButton
           icon="document-text"
-          label="Document"
+          label={t("fieldMedia.document")}
           color="#3B82F6"
           onPress={handlePickDocument}
           disabled={uploading || !selectedProject}

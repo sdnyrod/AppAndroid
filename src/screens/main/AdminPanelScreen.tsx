@@ -2,7 +2,9 @@ import React from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import { useLanguageStore } from "@/store/languageStore";
 export default function AdminPanelScreen() {
+  const { t } = useLanguageStore();
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>

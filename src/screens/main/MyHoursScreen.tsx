@@ -1,13 +1,15 @@
 import React from "react";
 import GenericScreen from "./GenericScreen";
 
+import { useLanguageStore } from "@/store/languageStore";
 export default function MyHoursScreen() {
+  const { t } = useLanguageStore();
   return (
     <GenericScreen
-      title="My Hours"
+      title={t("myHours.title")}
       icon="clipboard-outline"
       procedure="time.getMyEntries"
-      emptyMessage="No My Hours data found"
+      emptyMessage={t("myHours.noEntries")}
     />
   );
 }

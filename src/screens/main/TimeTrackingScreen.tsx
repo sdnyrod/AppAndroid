@@ -9,6 +9,7 @@ import * as Location from "expo-location";
 import { apiClient } from "@/services/api";
 import SearchableSelect from "@/components/SearchableSelect";
 
+import { useLanguageStore } from "@/store/languageStore";
 const { width, height } = Dimensions.get("window");
 const CHIP_WIDTH = (width - 48 - 8) / 2;
 
@@ -65,6 +66,7 @@ function getElapsedTime(clockInISO: string): string {
 // =============================================================================
 
 export default function TimeTrackingScreen() {
+  const { t } = useLanguageStore();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
   const [selectedProjectName, setSelectedProjectName] = useState<string>("");
@@ -157,7 +159,7 @@ export default function TimeTrackingScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permission Denied", "Location permission is required for clock in/out.");
+        Alert.alert(t("common.permissionDenied"), "Location permission is required for clock in/out.");
         return null;
       }
       try {
@@ -168,7 +170,7 @@ export default function TimeTrackingScreen() {
         return { lat: loc.coords.latitude.toString(), lng: loc.coords.longitude.toString() };
       }
     } catch {
-      Alert.alert("GPS Error", "Unable to get location. Please ensure GPS is enabled.");
+      Alert.alert(t("time.gpsError"), "Unable to get location. Please ensure GPS is enabled.");
       return null;
     }
   };
@@ -190,10 +192,10 @@ export default function TimeTrackingScreen() {
       if (result.ok) {
         await fetchData();
       } else {
-        Alert.alert("Error", result.error || "Failed to clock in");
+        Alert.alert(t("common.error"), result.error || t("time.failedClockIn"));
       }
     } catch (e: any) {
-      Alert.alert("Error", e?.message || "Failed to clock in");
+      Alert.alert(t("common.error"), e?.message || t("time.failedClockIn"));
     } finally { setClockingIn(false); }
   };
 
@@ -204,9 +206,9 @@ export default function TimeTrackingScreen() {
     try {
       const result = await apiClient.post("time.clockOut", { latitude: loc.lat, longitude: loc.lng });
       if (result.ok) { setActiveEntry(null); await fetchData(); }
-      else { Alert.alert("Error", result.error || "Failed to clock out"); }
+      else { Alert.alert(t("common.error"), result.error || t("time.failedClockOut")); }
     } catch (e: any) {
-      Alert.alert("Error", e?.message || "Failed to clock out");
+      Alert.alert(t("common.error"), e?.message || t("time.failedClockOut"));
     } finally { setClockingOut(false); }
   };
 
@@ -273,7 +275,7 @@ export default function TimeTrackingScreen() {
               items={projects.map((p) => ({ id: p.id, name: p.name, subtitle: p.clientName }))}
               selectedId={selectedProject}
               onSelect={(item) => { setSelectedProject(item.id); setSelectedProjectName(item.name); }}
-              placeholder="Search Project..."
+              placeholder={t("time.searchProject")}
               icon="business-outline"
               iconColor="#5EEAD4"
             />

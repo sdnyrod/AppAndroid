@@ -1,11 +1,19 @@
 import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import en from "@/i18n/en.json";
+import pt from "@/i18n/pt.json";
+import es from "@/i18n/es.json";
 
 const LANGUAGE_KEY = "crew_app_language";
 
 export type AppLanguage = "en" | "pt" | "es";
 
-interface LanguageLabels {
+type TranslationMap = Record<string, string>;
+
+const translations: Record<AppLanguage, TranslationMap> = { en, pt, es };
+
+// Legacy labels interface for backward compatibility with menu/drawer
+export interface LanguageLabels {
   dashboard: string;
   fieldOperations: string;
   timeTracking: string;
@@ -67,222 +75,121 @@ interface LanguageLabels {
   viewAll: string;
 }
 
-const translations: Record<AppLanguage, LanguageLabels> = {
-  en: {
-    dashboard: "Dashboard",
-    fieldOperations: "Field Operations",
-    timeTracking: "Time Tracking",
-    myHours: "My Hours",
-    activeWorkers: "Active Workers",
-    liveMap: "Live Map",
-    dailyLogs: "Daily Logs",
-    fieldMedia: "Field Media",
-    projects: "Projects",
-    jobSchedule: "Job Schedule",
-    dispatch: "Dispatch",
-    team: "Team",
-    employees: "Employees",
-    payroll: "Payroll",
-    productionPay: "Production Pay",
-    jobCosting: "Job Costing",
-    estimates: "Estimates",
-    receivables: "Receivables",
-    expenses: "Expenses",
-    jobCost: "Job Cost",
-    fleet: "Fleet",
-    vehicles: "Vehicles",
-    dispatchBoard: "Dispatch Board",
-    tripLog: "Trip Log",
-    mileageLog: "Mileage Log",
-    costReport: "Cost Report",
-    inventory: "Inventory",
-    materialCatalog: "Material Catalog",
-    inventoryItems: "Inventory Items",
-    warehouses: "Warehouses",
-    vendors: "Vendors",
-    purchaseOrders: "Purchase Orders",
-    vendorInvoices: "Vendor Invoices",
-    tools: "Tools",
-    sdsLibrary: "SDS Library",
-    reports: "Reports",
-    locationReport: "Location Report",
-    referralProgram: "Referral Program",
-    myReferrals: "My Referrals",
-    settings: "Settings",
-    departments: "Departments",
-    workTypes: "Work Types",
-    classifications: "Classifications",
-    jobRoles: "Job Roles",
-    companyProfile: "Company Profile",
-    billing: "Billing & Subscription",
-    accessRoles: "Access Roles",
-    adminPanel: "Admin Panel",
-    signOut: "Sign Out",
-    welcomeBack: "Welcome back, ",
-    noProjectsFound: "No projects found",
-    searchProjects: "Search projects...",
-    noWorkersClocked: "No workers clocked in",
-    currentlyWorking: "Currently Working",
-    quickActions: "Quick Actions",
-    projectStatus: "Project Status",
-    active: "Active",
-    completed: "Completed",
-    viewAll: "View All",
-  },
-  pt: {
-    dashboard: "Painel",
-    fieldOperations: "Operações de Campo",
-    timeTracking: "Controle de Ponto",
-    myHours: "Minhas Horas",
-    activeWorkers: "Trabalhadores Ativos",
-    liveMap: "Mapa ao Vivo",
-    dailyLogs: "Registros Diários",
-    fieldMedia: "Mídia de Campo",
-    projects: "Projetos",
-    jobSchedule: "Agenda de Trabalho",
-    dispatch: "Despacho",
-    team: "Equipe",
-    employees: "Funcionários",
-    payroll: "Folha de Pagamento",
-    productionPay: "Pagamento Produção",
-    jobCosting: "Custo de Obra",
-    estimates: "Orçamentos",
-    receivables: "Recebíveis",
-    expenses: "Despesas",
-    jobCost: "Custo do Trabalho",
-    fleet: "Frota",
-    vehicles: "Veículos",
-    dispatchBoard: "Painel de Despacho",
-    tripLog: "Registro de Viagem",
-    mileageLog: "Registro de Km",
-    costReport: "Relatório de Custo",
-    inventory: "Estoque",
-    materialCatalog: "Catálogo de Materiais",
-    inventoryItems: "Itens de Estoque",
-    warehouses: "Depósitos",
-    vendors: "Fornecedores",
-    purchaseOrders: "Ordens de Compra",
-    vendorInvoices: "Notas de Fornecedor",
-    tools: "Ferramentas",
-    sdsLibrary: "Biblioteca SDS",
-    reports: "Relatórios",
-    locationReport: "Relatório de Local",
-    referralProgram: "Programa de Indicação",
-    myReferrals: "Minhas Indicações",
-    settings: "Configurações",
-    departments: "Departamentos",
-    workTypes: "Tipos de Trabalho",
-    classifications: "Classificações",
-    jobRoles: "Funções",
-    companyProfile: "Perfil da Empresa",
-    billing: "Faturamento e Assinatura",
-    accessRoles: "Funções de Acesso",
-    adminPanel: "Painel Admin",
-    signOut: "Sair",
-    welcomeBack: "Bem-vindo, ",
-    noProjectsFound: "Nenhum projeto encontrado",
-    searchProjects: "Buscar projetos...",
-    noWorkersClocked: "Nenhum trabalhador ativo",
-    currentlyWorking: "Trabalhando Agora",
-    quickActions: "Ações Rápidas",
-    projectStatus: "Status dos Projetos",
-    active: "Ativos",
-    completed: "Concluídos",
-    viewAll: "Ver Todos",
-  },
-  es: {
-    dashboard: "Panel",
-    fieldOperations: "Operaciones de Campo",
-    timeTracking: "Control de Tiempo",
-    myHours: "Mis Horas",
-    activeWorkers: "Trabajadores Activos",
-    liveMap: "Mapa en Vivo",
-    dailyLogs: "Registros Diarios",
-    fieldMedia: "Media de Campo",
-    projects: "Proyectos",
-    jobSchedule: "Agenda de Trabajo",
-    dispatch: "Despacho",
-    team: "Equipo",
-    employees: "Empleados",
-    payroll: "Nómina",
-    productionPay: "Pago Producción",
-    jobCosting: "Costo de Obra",
-    estimates: "Presupuestos",
-    receivables: "Cuentas por Cobrar",
-    expenses: "Gastos",
-    jobCost: "Costo del Trabajo",
-    fleet: "Flota",
-    vehicles: "Vehículos",
-    dispatchBoard: "Panel de Despacho",
-    tripLog: "Registro de Viaje",
-    mileageLog: "Registro de Km",
-    costReport: "Informe de Costo",
-    inventory: "Inventario",
-    materialCatalog: "Catálogo de Materiales",
-    inventoryItems: "Artículos de Inventario",
-    warehouses: "Almacenes",
-    vendors: "Proveedores",
-    purchaseOrders: "Órdenes de Compra",
-    vendorInvoices: "Facturas de Proveedor",
-    tools: "Herramientas",
-    sdsLibrary: "Biblioteca SDS",
-    reports: "Informes",
-    locationReport: "Informe de Ubicación",
-    referralProgram: "Programa de Referidos",
-    myReferrals: "Mis Referidos",
-    settings: "Configuración",
-    departments: "Departamentos",
-    workTypes: "Tipos de Trabajo",
-    classifications: "Clasificaciones",
-    jobRoles: "Roles de Trabajo",
-    companyProfile: "Perfil de Empresa",
-    billing: "Facturación y Suscripción",
-    accessRoles: "Roles de Acceso",
-    adminPanel: "Panel Admin",
-    signOut: "Cerrar Sesión",
-    welcomeBack: "Bienvenido, ",
-    noProjectsFound: "No se encontraron proyectos",
-    searchProjects: "Buscar proyectos...",
-    noWorkersClocked: "Ningún trabajador activo",
-    currentlyWorking: "Trabajando Ahora",
-    quickActions: "Acciones Rápidas",
-    projectStatus: "Estado de Proyectos",
-    active: "Activos",
-    completed: "Completados",
-    viewAll: "Ver Todos",
-  },
-};
+// Build legacy labels from the new flat translation map
+function buildLegacyLabels(lang: AppLanguage): LanguageLabels {
+  const t = translations[lang];
+  return {
+    dashboard: t["dashboard.welcomeBack"] ? "Dashboard" : "Dashboard",
+    fieldOperations: lang === "pt" ? "Operações de Campo" : lang === "es" ? "Operaciones de Campo" : "Field Operations",
+    timeTracking: t["time.title"] || "Time Tracking",
+    myHours: t["myHours.title"] || "My Hours",
+    activeWorkers: t["activeWorkers.title"] || "Active Workers",
+    liveMap: t["liveMap.title"] || "Live Map",
+    dailyLogs: t["dailyLogs.title"] || "Daily Logs",
+    fieldMedia: t["fieldMedia.title"] || "Field Media",
+    projects: t["projects.title"] || "Projects",
+    jobSchedule: t["jobSchedule.title"] || "Job Schedule",
+    dispatch: t["dispatch.title"] || "Dispatch",
+    team: lang === "pt" ? "Equipe" : lang === "es" ? "Equipo" : "Team",
+    employees: t["employees.title"] || "Employees",
+    payroll: t["payroll.title"] || "Payroll",
+    productionPay: t["productionPay.title"] || "Production Pay",
+    jobCosting: t["jobCost.title"] || "Job Costing",
+    estimates: t["estimates.title"] || "Estimates",
+    receivables: t["receivables.title"] || "Receivables",
+    expenses: t["expenses.title"] || "Expenses",
+    jobCost: t["jobCost.title"] || "Job Cost",
+    fleet: t["fleet.title"] || "Fleet",
+    vehicles: t["fleet.vehicles"] || "Vehicles",
+    dispatchBoard: t["fleet.dispatchBoard"] || "Dispatch Board",
+    tripLog: t["fleet.tripLog"] || "Trip Log",
+    mileageLog: t["fleet.mileageLog"] || "Mileage Log",
+    costReport: t["fleet.costReport"] || "Cost Report",
+    inventory: t["inventory.title"] || "Inventory",
+    materialCatalog: t["inventory.materialCatalog"] || "Material Catalog",
+    inventoryItems: t["inventory.items"] || "Inventory Items",
+    warehouses: t["inventory.warehouses"] || "Warehouses",
+    vendors: t["inventory.vendors"] || "Vendors",
+    purchaseOrders: t["inventory.purchaseOrders"] || "Purchase Orders",
+    vendorInvoices: t["inventory.vendorInvoices"] || "Vendor Invoices",
+    tools: t["tools.title"] || "Tools",
+    sdsLibrary: t["tools.sdsLibrary"] || "SDS Library",
+    reports: t["tools.reports"] || "Reports",
+    locationReport: t["tools.locationReport"] || "Location Report",
+    referralProgram: t["referrals.title"] || "Referral Program",
+    myReferrals: t["referrals.myReferrals"] || "My Referrals",
+    settings: t["settings.title"] || "Settings",
+    departments: t["settings.departments"] || "Departments",
+    workTypes: t["settings.workTypes"] || "Work Types",
+    classifications: t["settings.classifications"] || "Classifications",
+    jobRoles: t["settings.jobRoles"] || "Job Roles",
+    companyProfile: t["settings.companyProfile"] || "Company Profile",
+    billing: t["settings.billing"] || "Billing & Subscription",
+    accessRoles: t["settings.accessRoles"] || "Access Roles",
+    adminPanel: t["settings.adminPanel"] || "Admin Panel",
+    signOut: t["auth.signOut"] || "Sign Out",
+    welcomeBack: t["dashboard.welcomeBack"] || "Welcome back, ",
+    noProjectsFound: t["projects.noProjects"] || "No projects found",
+    searchProjects: t["projects.search"] || "Search projects...",
+    noWorkersClocked: t["dashboard.noWorkersClocked"] || "No workers clocked in",
+    currentlyWorking: t["dashboard.currentlyWorking"] || "Currently Working",
+    quickActions: t["dashboard.quickActions"] || "Quick Actions",
+    projectStatus: t["dashboard.projectStatus"] || "Project Status",
+    active: t["common.active"] || "Active",
+    completed: t["common.completed"] || "Completed",
+    viewAll: t["dashboard.viewAll"] || "View All",
+  };
+}
 
 interface LanguageStore {
   language: AppLanguage;
   labels: LanguageLabels;
   setLanguage: (lang: AppLanguage) => void;
   loadLanguage: () => Promise<void>;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }
 
-export const useLanguageStore = create<LanguageStore>((set) => ({
+export const useLanguageStore = create<LanguageStore>((set, get) => ({
   language: "en",
-  labels: translations.en,
+  labels: buildLegacyLabels("en"),
 
   setLanguage: (lang: AppLanguage) => {
-    set({ language: lang, labels: translations[lang] });
-    AsyncStorage.setItem(LANGUAGE_KEY, lang).catch(() => {
-      // Non-critical persistence failure
-    });
+    set({ language: lang, labels: buildLegacyLabels(lang) });
+    AsyncStorage.setItem(LANGUAGE_KEY, lang).catch(() => {});
   },
 
   loadLanguage: async () => {
     try {
       const stored = await AsyncStorage.getItem(LANGUAGE_KEY);
       if (stored && (stored === "en" || stored === "pt" || stored === "es")) {
-        set({ language: stored, labels: translations[stored] });
+        set({ language: stored, labels: buildLegacyLabels(stored) });
       }
     } catch {
       // Default to English on failure
     }
   },
+
+  t: (key: string, params?: Record<string, string | number>): string => {
+    const { language } = get();
+    const map = translations[language];
+    let value = map[key] || translations.en[key] || key;
+    
+    // Handle interpolation: {{count}}, {{name}}, etc.
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        value = value.replace(new RegExp(`\\{\\{${k}\\}\\}`, "g"), String(v));
+      });
+    }
+    
+    return value;
+  },
 }));
 
+// Standalone t function for use outside React components
+export function t(key: string, params?: Record<string, string | number>): string {
+  return useLanguageStore.getState().t(key, params);
+}
+
 export function getTranslations(lang: AppLanguage): LanguageLabels {
-  return translations[lang];
+  return buildLegacyLabels(lang);
 }

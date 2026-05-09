@@ -14,7 +14,9 @@ import { useAuthStore } from "@/store/authStore";
 import { usePermissionsStore } from "@/store/permissionsStore";
 import { apiClient } from "@/services/api";
 
+import { useLanguageStore } from "@/store/languageStore";
 export default function ProfileScreen() {
+  const { t } = useLanguageStore();
   const { user, logout } = useAuthStore();
   const { role, isOwner } = usePermissionsStore();
 
@@ -30,9 +32,9 @@ export default function ProfileScreen() {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   const handleLogout = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Sign Out", style: "destructive", onPress: logout },
+    Alert.alert(t("auth.signOut"), "Are you sure you want to sign out?", [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("auth.signOut"), style: "destructive", onPress: logout },
     ]);
   };
 
@@ -52,19 +54,19 @@ export default function ProfileScreen() {
 
     // Validation
     if (!currentPassword.trim()) {
-      setPasswordError("Current password is required");
+      setPasswordError(t("auth.currentPasswordRequired"));
       return;
     }
     if (newPassword.length < 8) {
-      setPasswordError("New password must be at least 8 characters");
+      setPasswordError(t("auth.passwordTooShort"));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordError("Passwords do not match");
+      setPasswordError(t("auth.passwordsMismatch"));
       return;
     }
     if (newPassword === currentPassword) {
-      setPasswordError("New password must be different from current password");
+      setPasswordError(t("auth.passwordSameAsOld"));
       return;
     }
 
@@ -84,10 +86,10 @@ export default function ProfileScreen() {
           setPasswordSuccess(false);
         }, 2000);
       } else {
-        setPasswordError(result.error || "Failed to change password");
+        setPasswordError(result.error || t("auth.failedChangePassword"));
       }
     } catch (err: any) {
-      setPasswordError(err?.message || "Network error. Please try again.");
+      setPasswordError(err?.message || t("auth.connectionError"));
     } finally {
       setChangingPassword(false);
     }
@@ -110,10 +112,10 @@ export default function ProfileScreen() {
 
       {/* Info Cards */}
       <View style={styles.infoSection}>
-        <InfoRow icon="mail-outline" label="Email" value={user?.email || "—"} />
-        <InfoRow icon="call-outline" label="Phone" value={user?.phone || "—"} />
-        <InfoRow icon="business-outline" label="Company" value={user?.tenantName || "—"} />
-        <InfoRow icon="globe-outline" label="Language" value={(user?.language || "en").toUpperCase()} />
+        <InfoRow icon="mail-outline" label={t("auth.email")} value={user?.email || "—"} />
+        <InfoRow icon="call-outline" label={t("profile.phone")} value={user?.phone || "—"} />
+        <InfoRow icon="business-outline" label={t("profile.company")} value={user?.tenantName || "—"} />
+        <InfoRow icon="globe-outline" label={t("settings.language")} value={(user?.language || "en").toUpperCase()} />
       </View>
 
       {/* Change Password Section */}
@@ -158,7 +160,7 @@ export default function ProfileScreen() {
                 style={styles.passwordInput}
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
-                placeholder="Current Password"
+                placeholder={t("auth.currentPassword")}
                 placeholderTextColor="#5A6A80"
                 secureTextEntry={!showCurrentPw}
                 autoCapitalize="none"
@@ -179,7 +181,7 @@ export default function ProfileScreen() {
                 style={styles.passwordInput}
                 value={newPassword}
                 onChangeText={setNewPassword}
-                placeholder="New Password (min 8 characters)"
+                placeholder={t("auth.newPassword")}
                 placeholderTextColor="#5A6A80"
                 secureTextEntry={!showNewPw}
                 autoCapitalize="none"
@@ -200,7 +202,7 @@ export default function ProfileScreen() {
                 style={styles.passwordInput}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
-                placeholder="Confirm New Password"
+                placeholder={t("auth.confirmNewPassword")}
                 placeholderTextColor="#5A6A80"
                 secureTextEntry={!showNewPw}
                 autoCapitalize="none"

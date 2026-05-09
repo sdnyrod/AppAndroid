@@ -23,16 +23,17 @@ import * as ImageManipulator from "expo-image-manipulator";
 import { apiClient } from "@/services/api";
 import SearchableSelect from "@/components/SearchableSelect";
 
+import { useLanguageStore } from "@/store/languageStore";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const CATEGORIES = [
-  { value: "material", label: "Material", icon: "cube-outline" },
-  { value: "labor", label: "Labor", icon: "people-outline" },
-  { value: "equipment", label: "Equipment", icon: "construct-outline" },
-  { value: "fuel", label: "Fuel", icon: "car-outline" },
-  { value: "subcontractor", label: "Subcontractor", icon: "business-outline" },
-  { value: "permit", label: "Permit", icon: "document-text-outline" },
-  { value: "other", label: "Other", icon: "ellipsis-horizontal-outline" },
+const CATEGORY_KEYS = [
+  { value: "material", labelKey: "expenses.material", icon: "cube-outline" },
+  { value: "labor", labelKey: "expenses.labor", icon: "people-outline" },
+  { value: "equipment", labelKey: "expenses.equipment", icon: "construct-outline" },
+  { value: "fuel", labelKey: "expenses.fuel", icon: "car-outline" },
+  { value: "subcontractor", labelKey: "expenses.subcontractor", icon: "business-outline" },
+  { value: "permit", labelKey: "expenses.permit", icon: "document-text-outline" },
+  { value: "other", labelKey: "expenses.other", icon: "ellipsis-horizontal-outline" },
 ];
 
 interface Expense {
@@ -67,6 +68,7 @@ interface ScanResult {
 }
 
 export default function ExpensesScreen() {
+  const { t } = useLanguageStore();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -148,7 +150,7 @@ export default function ExpensesScreen() {
   // =========================================================================
   const handleScanReceipt = async () => {
     if (!selectedProjectId) {
-      Alert.alert("Select a Project", "Please select a project/job first before scanning a receipt.");
+      Alert.alert(t("time.selectProject"), "Please select a project/job first before scanning a receipt.");
       return;
     }
 
@@ -171,7 +173,7 @@ export default function ExpensesScreen() {
 
   const handlePickReceipt = async () => {
     if (!selectedProjectId) {
-      Alert.alert("Select a Project", "Please select a project/job first before scanning a receipt.");
+      Alert.alert(t("time.selectProject"), "Please select a project/job first before scanning a receipt.");
       return;
     }
 
@@ -218,7 +220,7 @@ export default function ExpensesScreen() {
           category: scan.category || "other",
           description: scan.items && scan.items.length > 0
             ? scan.items.map((i) => i.description).join(", ")
-            : "Scanned receipt",
+            : t("expenses.scannedReceipt"),
           vendor: scan.vendor || "",
           amount: scan.total?.toFixed(2) || "",
           expenseDate: scan.date || new Date().toISOString().split("T")[0],
@@ -229,7 +231,7 @@ export default function ExpensesScreen() {
         // Show confirmation dialog with summary
         setShowScanConfirm(true);
       } else {
-        Alert.alert("Scan Failed", "Could not extract data from the receipt. Please enter manually.");
+        Alert.alert(t("expenses.scanFailed"), "Could not extract data from the receipt. Please enter manually.");
         resetForm();
         if (selectedProjectId) {
           setFormData((prev) => ({ ...prev, projectId: selectedProjectId }));
@@ -237,7 +239,7 @@ export default function ExpensesScreen() {
         setShowForm(true);
       }
     } catch (err: any) {
-      Alert.alert("Error", err?.message || "Failed to scan receipt. Please try again.");
+      Alert.alert(t("common.error"), err?.message || "Failed to scan receipt. Please try again.");
     } finally {
       setScanning(false);
     }
@@ -267,10 +269,10 @@ export default function ExpensesScreen() {
         resetForm();
         fetchExpenses();
       } else {
-        Alert.alert("Error", res.error || "Failed to create expense.");
+        Alert.alert(t("common.error"), res.error || "Failed to create expense.");
       }
     } catch (err: any) {
-      Alert.alert("Error", err?.message || "Operation failed.");
+      Alert.alert(t("common.error"), err?.message || "Operation failed.");
     } finally {
       setSubmitting(false);
     }
@@ -302,7 +304,7 @@ export default function ExpensesScreen() {
 
   const handleAddNew = () => {
     if (!selectedProjectId) {
-      Alert.alert("Select a Project", "Please select a project/job first.");
+      Alert.alert(t("time.selectProject"), "Please select a project/job first.");
       return;
     }
     resetForm();
@@ -326,15 +328,15 @@ export default function ExpensesScreen() {
 
   const handleSubmit = async () => {
     if (!formData.projectId) {
-      Alert.alert("Error", "Please select a project.");
+      Alert.alert(t("common.error"), "Please select a project.");
       return;
     }
     if (!formData.description.trim()) {
-      Alert.alert("Error", "Please enter a description.");
+      Alert.alert(t("common.error"), "Please enter a description.");
       return;
     }
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
-      Alert.alert("Error", "Please enter a valid amount.");
+      Alert.alert(t("common.error"), "Please enter a valid amount.");
       return;
     }
 
@@ -350,7 +352,7 @@ export default function ExpensesScreen() {
         if (res.ok) {
           Alert.alert("Success", "Expense updated.");
         } else {
-          Alert.alert("Error", res.error || "Failed to update expense.");
+          Alert.alert(t("common.error"), res.error || "Failed to update expense.");
           return;
         }
       } else if (scanResult && formData.receiptUrl) {
@@ -367,7 +369,7 @@ export default function ExpensesScreen() {
         if (res.ok) {
           Alert.alert("Success", "Expense created from receipt.");
         } else {
-          Alert.alert("Error", res.error || "Failed to create expense.");
+          Alert.alert(t("common.error"), res.error || "Failed to create expense.");
           return;
         }
       } else {
@@ -383,7 +385,7 @@ export default function ExpensesScreen() {
         if (res.ok) {
           Alert.alert("Success", "Expense recorded.");
         } else {
-          Alert.alert("Error", res.error || "Failed to create expense.");
+          Alert.alert(t("common.error"), res.error || "Failed to create expense.");
           return;
         }
       }
@@ -391,7 +393,7 @@ export default function ExpensesScreen() {
       resetForm();
       fetchExpenses();
     } catch (err: any) {
-      Alert.alert("Error", err?.message || "Operation failed.");
+      Alert.alert(t("common.error"), err?.message || "Operation failed.");
     } finally {
       setSubmitting(false);
     }
@@ -402,12 +404,12 @@ export default function ExpensesScreen() {
       const res = await apiClient.post("expenses.delete", { id });
       if (res.ok) {
         setExpenses((prev) => prev.filter((e) => e.id !== id));
-        Alert.alert("Deleted", "Expense removed.");
+        Alert.alert(t("expenses.deleted"), "Expense removed.");
       } else {
-        Alert.alert("Error", res.error || "Failed to delete expense.");
+        Alert.alert(t("common.error"), res.error || "Failed to delete expense.");
       }
     } catch (err: any) {
-      Alert.alert("Error", err?.message || "Delete failed.");
+      Alert.alert(t("common.error"), err?.message || "Delete failed.");
     }
     setDeleteConfirmId(null);
   };
@@ -415,8 +417,8 @@ export default function ExpensesScreen() {
   // =========================================================================
   // RENDER HELPERS
   // =========================================================================
-  const getCategoryIcon = (cat: string) => CATEGORIES.find((c) => c.value === cat)?.icon || "receipt-outline";
-  const getCategoryLabel = (cat: string) => CATEGORIES.find((c) => c.value === cat)?.label || cat;
+  const getCategoryIcon = (cat: string) => CATEGORY_KEYS.find((c) => c.value === cat)?.icon || "receipt-outline";
+  const getCategoryLabel = (cat: string) => { const found = CATEGORY_KEYS.find((c) => c.value === cat); return found ? t(found.labelKey) : cat; };
 
   const formatDate = (dateStr: string) => {
     try {
@@ -452,7 +454,7 @@ export default function ExpensesScreen() {
         <View style={styles.expenseInfo}>
           <Text style={styles.expenseDesc} numberOfLines={1}>{item.description}</Text>
           <Text style={styles.expenseMeta}>
-            {getCategoryLabel(item.category)} • {item.vendor || "No vendor"} • {formatDate(item.expenseDate)}
+            {getCategoryLabel(item.category)} • {item.vendor || t("expenses.noVendor")} • {formatDate(item.expenseDate)}
           </Text>
           {!selectedProjectId && item.project && (
             <Text style={styles.expenseProject}>{item.project.name || getProjectName(item.projectId)}</Text>
@@ -486,10 +488,10 @@ export default function ExpensesScreen() {
         selectedId={selectedProjectId}
         onSelect={(item) => setSelectedProjectId(item.id)}
         onClear={() => setSelectedProjectId(null)}
-        placeholder="Search Job / Project..."
+        placeholder={t("time.searchProject")}
         icon="business-outline"
         iconColor="#3B82F6"
-        label="Job"
+        label={t("common.job")}
       />
 
       {/* ============ STEP 2: ACTION BUTTONS (camera only shows after project selected) ============ */}
@@ -691,11 +693,11 @@ export default function ExpensesScreen() {
               <Text style={styles.formCancel}>Cancel</Text>
             </TouchableOpacity>
             <Text style={styles.formTitle}>
-              {editingExpense ? "Edit Expense" : scanResult ? "Edit Scanned Data" : "New Expense"}
+              {editingExpense ? t("expenses.editExpense") : scanResult ? t("expenses.editScannedData") : "New Expense"}
             </Text>
             <TouchableOpacity onPress={handleSubmit} disabled={submitting}>
               <Text style={[styles.formSave, submitting && { opacity: 0.5 }]}>
-                {submitting ? "..." : "Save"}
+                {submitting ? "..." : t("common.save")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -736,7 +738,7 @@ export default function ExpensesScreen() {
               style={styles.input}
               value={formData.description}
               onChangeText={(t) => setFormData((p) => ({ ...p, description: t }))}
-              placeholder="What was purchased?"
+              placeholder={t("expenses.whatPurchased")}
               placeholderTextColor="#5A6A80"
             />
 
@@ -746,7 +748,7 @@ export default function ExpensesScreen() {
               style={styles.input}
               value={formData.vendor}
               onChangeText={(t) => setFormData((p) => ({ ...p, vendor: t }))}
-              placeholder="Store or supplier name"
+              placeholder={t("expenses.storeName")}
               placeholderTextColor="#5A6A80"
             />
 
@@ -777,7 +779,7 @@ export default function ExpensesScreen() {
               style={[styles.input, { minHeight: 80, textAlignVertical: "top" }]}
               value={formData.notes}
               onChangeText={(t) => setFormData((p) => ({ ...p, notes: t }))}
-              placeholder="Additional notes..."
+              placeholder={t("time.additionalNotes")}
               placeholderTextColor="#5A6A80"
               multiline
               numberOfLines={4}
@@ -791,14 +793,14 @@ export default function ExpensesScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.pickerModal}>
             <Text style={styles.pickerModalTitle}>Select Category</Text>
-            {CATEGORIES.map((cat) => (
+            {CATEGORY_KEYS.map((cat) => (
               <TouchableOpacity
                 key={cat.value}
                 style={[styles.pickerItem, formData.category === cat.value && styles.pickerItemActive]}
                 onPress={() => { setFormData((p) => ({ ...p, category: cat.value })); setShowCategoryPicker(false); }}
               >
                 <Ionicons name={cat.icon as any} size={18} color="#3B82F6" style={{ marginRight: 12 }} />
-                <Text style={styles.pickerItemText}>{cat.label}</Text>
+                <Text style={styles.pickerItemText}>{t(cat.labelKey)}</Text>
                 {formData.category === cat.value && <Ionicons name="checkmark" size={18} color="#3B82F6" />}
               </TouchableOpacity>
             ))}

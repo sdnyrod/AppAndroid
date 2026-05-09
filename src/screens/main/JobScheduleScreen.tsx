@@ -6,6 +6,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { apiClient } from "@/services/api";
 
+import { useLanguageStore } from "@/store/languageStore";
 const { width } = Dimensions.get("window");
 const DAY_WIDTH = Math.floor((width - 32) / 7);
 
@@ -43,6 +44,7 @@ function isSameDay(d1: Date, d2: Date): boolean {
 }
 
 export default function JobScheduleScreen() {
+  const { t } = useLanguageStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
