@@ -26,7 +26,7 @@ const BIOMETRIC_ENABLED_KEY = "crew_biometric_enabled";
 const SAVED_CREDENTIALS_KEY = "crew_saved_credentials";
 const JUST_LOGGED_OUT_KEY = "crew_just_logged_out";
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }: any) {
   const { t } = useLanguageStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -499,10 +499,22 @@ export default function LoginScreen() {
                   color="#5A6A80"
                 />
                 <Text style={[styles.biometricButtonText, { color: "#5A6A80" }]}>
-                  Sign in with {biometricType}
+                  {t("auth.signInWithBiometric", { type: biometricType })}
                 </Text>
               </TouchableOpacity>
             )}
+
+            {/* Sign Up Link */}
+            <TouchableOpacity
+              style={styles.signUpLink}
+              onPress={() => navigation.navigate("Register")}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.signUpText}>
+                {t("auth.noAccount")}{" "}
+                <Text style={styles.signUpHighlight}>{t("auth.signUp")}</Text>
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -664,5 +676,17 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: "#5A6A80",
     fontSize: 14,
+  },
+  signUpLink: {
+    marginTop: 20,
+    alignItems: "center",
+  },
+  signUpText: {
+    color: "#5A6A80",
+    fontSize: 14,
+  },
+  signUpHighlight: {
+    color: "#3B82F6",
+    fontWeight: "600",
   },
 });

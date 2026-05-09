@@ -9,6 +9,7 @@ import { useLanguageStore } from "@/store/languageStore";
 
 // Auth Screens
 import LoginScreen from "@/screens/auth/LoginScreen";
+import RegisterScreen from "@/screens/auth/RegisterScreen";
 
 // Main App with Drawer
 import DrawerContent from "./DrawerContent";
@@ -65,7 +66,10 @@ export default function AppNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
-          <Stack.Screen name="Login" component={LoginScreen} />
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+          </>
         ) : (
           <Stack.Screen name="App" component={AppDrawer} />
         )}
