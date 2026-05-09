@@ -50,7 +50,8 @@
         "NSCameraUsageDescription": "CREW needs camera access to take photos and videos of job sites.",
         "NSPhotoLibraryUsageDescription": "CREW needs photo library access to upload existing photos and videos to projects.",
         "NSMicrophoneUsageDescription": "CREW needs microphone access to record videos with audio.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["remote-notification"]
       },
       "buildNumber": "4"
     },
@@ -70,6 +71,13 @@
         }
       ],
       "expo-document-picker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#3B82F6"
+        }
+      ],
       "expo-asset",
       "expo-font",
       [

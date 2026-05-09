@@ -6,6 +6,7 @@ import { createDrawerNavigator } from "@react-navigation/drawer";
 import { useAuthStore } from "@/store/authStore";
 import { usePermissionsStore } from "@/store/permissionsStore";
 import { useLanguageStore } from "@/store/languageStore";
+import { useNotificationStore } from "@/store/notificationStore";
 
 // Auth Screens
 import LoginScreen from "@/screens/auth/LoginScreen";
@@ -47,12 +48,16 @@ export default function AppNavigator() {
     loadLanguage();
   }, []);
 
-  // Fetch permissions when authenticated
+  const { initializePushNotifications, cleanup: cleanupNotifications } = useNotificationStore();
+
+  // Fetch permissions and init push notifications when authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
       fetchPermissions();
+      initializePushNotifications();
     } else {
       resetPermissions();
+      cleanupNotifications();
     }
   }, [isAuthenticated, user]);
 
