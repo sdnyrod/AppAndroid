@@ -24,8 +24,7 @@ interface ScheduleEvent {
   materials: { scheduleId: number; materialName: string; estimatedQuantity: number; unit: string }[];
 }
 
-const WEEKDAYS = [t("days.sun"), t("days.mon"), t("days.tue"), t("days.wed"), t("days.thu"), t("days.fri"), t("days.sat")];
-const MONTHS = [t("months.january"), t("months.february"), t("months.march"), t("months.april"), t("months.may"), t("months.june"), t("months.july"), t("months.august"), t("months.september"), t("months.october"), t("months.november"), t("months.december")];
+
 
 function getDaysInMonth(year: number, month: number): Date[] {
   const days: Date[] = [];
@@ -45,6 +44,8 @@ function isSameDay(d1: Date, d2: Date): boolean {
 
 export default function JobScheduleScreen() {
   const { t } = useLanguageStore();
+  const WEEKDAYS = useMemo(() => [t("days.sun"), t("days.mon"), t("days.tue"), t("days.wed"), t("days.thu"), t("days.fri"), t("days.sat")], [t]);
+  const MONTHS = useMemo(() => [t("months.january"), t("months.february"), t("months.march"), t("months.april"), t("months.may"), t("months.june"), t("months.july"), t("months.august"), t("months.september"), t("months.october"), t("months.november"), t("months.december")], [t]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState<ScheduleEvent[]>([]);

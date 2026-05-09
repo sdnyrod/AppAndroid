@@ -289,6 +289,7 @@ export default function EstimatesScreen() {
 // ============================================================================
 
 function EstimateDetailView({ detail, onClose }: { detail: EstimateDetail; onClose: () => void }) {
+  const { t } = useLanguageStore();
   const est = detail.estimate;
   const proj = detail.project;
   const statusStyle = STATUS_COLORS[est.status] || STATUS_COLORS.draft;

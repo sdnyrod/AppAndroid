@@ -73,7 +73,7 @@ function getCurrentPayrollWeek(): { start: Date; end: Date } {
 }
 
 /** Format date as "MMM DD" */
-function formatShortDate(date: Date): string {
+function formatShortDate(date: Date, t: (key: string) => string): string {
   const months = [t("months.jan"), t("months.feb"), t("months.mar"), t("months.apr"), t("months.may"), t("months.jun"), t("months.jul"), t("months.aug"), t("months.sep"), t("months.oct"), t("months.nov"), t("months.dec")];
   return `${months[date.getMonth()]} ${date.getDate()}`;
 }
@@ -115,6 +115,7 @@ interface DateRangePickerProps {
 }
 
 function DateRangePicker({ startDate, endDate, onPrevWeek, onNextWeek, onCurrentWeek, isCurrentWeek }: DateRangePickerProps) {
+  const { t } = useLanguageStore();
   return (
     <View style={styles.datePickerContainer}>
       <TouchableOpacity style={styles.dateNavButton} onPress={onPrevWeek}>
@@ -123,7 +124,7 @@ function DateRangePicker({ startDate, endDate, onPrevWeek, onNextWeek, onCurrent
       <TouchableOpacity style={styles.dateRangeDisplay} onPress={onCurrentWeek}>
         <Ionicons name="calendar-outline" size={16} color="#8892A4" style={{ marginRight: 6 }} />
         <Text style={styles.dateRangeText}>
-          {formatShortDate(startDate)} – {formatShortDate(endDate)}
+          {formatShortDate(startDate, t)} – {formatShortDate(endDate, t)}
         </Text>
         {!isCurrentWeek && (
           <View style={styles.todayBadge}>

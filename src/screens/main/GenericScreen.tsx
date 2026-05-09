@@ -28,10 +28,11 @@ export default function GenericScreen({
   title,
   icon,
   procedure,
-  emptyMessage = t("common.noData"),
+  emptyMessage,
   renderItem,
 }: GenericScreenProps) {
   const { t } = useLanguageStore();
+  const resolvedEmptyMessage = emptyMessage || t("common.noData");
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -96,7 +97,7 @@ export default function GenericScreen({
     return (
       <View style={styles.centered}>
         <Ionicons name={icon as any} size={48} color="#5A6A80" />
-        <Text style={styles.emptyText}>{emptyMessage}</Text>
+        <Text style={styles.emptyText}>{resolvedEmptyMessage}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={fetchData}>
           <Text style={styles.retryText}>{t("common.refresh")}</Text>
         </TouchableOpacity>
