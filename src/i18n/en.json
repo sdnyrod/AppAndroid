@@ -654,5 +654,7 @@
   "activeWorkers.clockedInAt": "Clocked in at",
   "activeWorkers.hours": "hours",
   "activeWorkers.noActiveWorkers": "No active workers right now",
-  "myHours.weekTotal": "Week Total"
+  "myHours.weekTotal": "Week Total",
+  "time.confirmClockOut": "Confirm Clock Out",
+  "time.clockOutConfirmMessage": "Clock out"
 }

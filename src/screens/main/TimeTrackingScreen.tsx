@@ -76,6 +76,7 @@ export default function TimeTrackingScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [clockingIn, setClockingIn] = useState(false);
   const [clockingOut, setClockingOut] = useState(false);
+  const [clockingOutMemberId, setClockingOutMemberId] = useState<number | null>(null);
 
 
 
@@ -212,6 +213,40 @@ export default function TimeTrackingScreen() {
     } finally { setClockingOut(false); }
   };
 
+  const handleCrewClockOut = (member: CrewMember) => {
+    Alert.alert(
+      t("time.confirmClockOut"),
+      `${t("time.clockOutConfirmMessage")} ${member.name}?`,
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("time.clockOut"),
+          style: "destructive",
+          onPress: async () => {
+            setClockingOutMemberId(member.id);
+            const loc = await getLocation();
+            try {
+              const result = await apiClient.post("time.supervisorClockOut", {
+                employeeId: member.id,
+                latitude: loc?.lat,
+                longitude: loc?.lng,
+              });
+              if (result.ok) {
+                await fetchData();
+              } else {
+                Alert.alert(t("common.error"), result.error || t("time.failedClockOut"));
+              }
+            } catch (e: any) {
+              Alert.alert(t("common.error"), e?.message || t("time.failedClockOut"));
+            } finally {
+              setClockingOutMemberId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const selectProject = (project: Project) => {
     setSelectedProject(project.id);
     setSelectedProjectName(project.name);
@@ -345,8 +380,16 @@ export default function TimeTrackingScreen() {
                     <Text style={styles.crewName}>{member.name}</Text>
                     <Text style={styles.crewProject}>{member.projectName}  {member.elapsed}</Text>
                   </View>
-                  <TouchableOpacity style={styles.clockOutBadge}>
-                    <Ionicons name="stop" size={10} color="#FFFFFF" />
+                  <TouchableOpacity
+                    style={styles.clockOutBadge}
+                    onPress={() => handleCrewClockOut(member)}
+                    disabled={clockingOutMemberId === member.id}
+                  >
+                    {clockingOutMemberId === member.id ? (
+                      <ActivityIndicator size={10} color="#FFFFFF" />
+                    ) : (
+                      <Ionicons name="stop" size={10} color="#FFFFFF" />
+                    )}
                     <Text style={styles.clockOutBadgeText}>{t("time.out")}</Text>
                   </TouchableOpacity>
                 </View>
