@@ -11,6 +11,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const USER_CACHE_KEY = "crew_user_cache";
+const JUST_LOGGED_OUT_KEY = "crew_just_logged_out";
 
 interface AuthStore {
   user: User | null;
@@ -50,13 +51,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const response = await apiLogin(email, password);
 
       if (!response.ok || !response.data) {
-        set({ isLoading: false, error: response.error || "Invalid credentials" });
+        const errorMsg = response.error || "Invalid email or password. Please try again.";
+        set({ isLoading: false, error: errorMsg });
         return false;
       }
 
       const result = response.data;
       if (!result.success) {
-        set({ isLoading: false, error: "Login failed" });
+        set({ isLoading: false, error: "Login failed. Please check your credentials." });
         return false;
       }
 
@@ -129,13 +131,19 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       return true;
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Login failed";
+      const message = e instanceof Error ? e.message : "Connection error. Please check your internet and try again.";
       set({ isLoading: false, error: message });
       return false;
     }
   },
 
   logout: async () => {
+    // Set the just-logged-out flag BEFORE clearing auth state
+    // This prevents Face ID from auto-triggering when LoginScreen mounts
+    try {
+      await AsyncStorage.setItem(JUST_LOGGED_OUT_KEY, "true");
+    } catch {}
+
     try {
       await apiLogout();
     } catch {

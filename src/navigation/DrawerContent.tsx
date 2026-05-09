@@ -14,8 +14,9 @@ import { DrawerContentComponentProps } from "@react-navigation/drawer";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/store/authStore";
 import { useLanguageStore, AppLanguage } from "@/store/languageStore";
-import { MENU_GROUPS, MenuGroup } from "./menuConfig";
+import { MENU_GROUPS, MenuGroup, getFilteredMenuGroups } from "./menuConfig";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { usePermissionsStore } from "@/store/permissionsStore";
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -122,7 +123,8 @@ export default function DrawerContent({ navigation }: DrawerContentComponentProp
   // Track which groups are expanded (start with none expanded for clean look)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
-  const menuGroups = MENU_GROUPS;
+  const { has, hasAny, isOwner } = usePermissionsStore();
+  const menuGroups = isOwner ? MENU_GROUPS : getFilteredMenuGroups(has, hasAny);
 
   const displayRole = (() => {
     const role = user?.role || "employee";

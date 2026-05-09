@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   Image,
   ScrollView,
   Alert,
-  Switch,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as LocalAuthentication from "expo-local-authentication";
@@ -24,6 +23,7 @@ import { apiClient } from "@/services/api";
 const SAVED_EMAIL_KEY = "crew_saved_email";
 const BIOMETRIC_ENABLED_KEY = "crew_biometric_enabled";
 const SAVED_CREDENTIALS_KEY = "crew_saved_credentials";
+const JUST_LOGGED_OUT_KEY = "crew_just_logged_out";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -33,7 +33,10 @@ export default function LoginScreen() {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricType, setBiometricType] = useState<string>("Biometrics");
   const [biometricEnabled, setBiometricEnabled] = useState(false);
-  const [attemptedBiometric, setAttemptedBiometric] = useState(false);
+  const [initDone, setInitDone] = useState(false);
+
+  // Track if we already attempted auto-biometric this mount
+  const autoAttempted = useRef(false);
 
   const {
     login,
@@ -71,12 +74,14 @@ export default function LoginScreen() {
     } catch {}
 
     // 2. Check biometric availability
+    let bioAvailable = false;
     try {
       const compatible = await LocalAuthentication.hasHardwareAsync();
       const enrolled = await LocalAuthentication.isEnrolledAsync();
-      setBiometricAvailable(compatible && enrolled);
+      bioAvailable = compatible && enrolled;
+      setBiometricAvailable(bioAvailable);
 
-      if (compatible && enrolled) {
+      if (bioAvailable) {
         const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
         if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
           setBiometricType("Face ID");
@@ -86,22 +91,35 @@ export default function LoginScreen() {
       }
     } catch {}
 
-    // 3. Check if biometric login is enabled
+    // 3. Check if biometric login is enabled AND credentials exist
+    let bioEnabled = false;
     try {
       const enabled = await AsyncStorage.getItem(BIOMETRIC_ENABLED_KEY);
-      if (enabled === "true") {
+      const credentialsJson = await SecureStore.getItemAsync(SAVED_CREDENTIALS_KEY);
+      if (enabled === "true" && credentialsJson) {
+        bioEnabled = true;
         setBiometricEnabled(true);
       }
     } catch {}
-  };
 
-  // Auto-attempt biometric login on mount if enabled
-  useEffect(() => {
-    if (biometricEnabled && biometricAvailable && !attemptedBiometric) {
-      setAttemptedBiometric(true);
+    setInitDone(true);
+
+    // 4. Auto-trigger biometric ONLY on cold start (not after logout)
+    if (bioEnabled && bioAvailable && !autoAttempted.current) {
+      autoAttempted.current = true;
+      // Check if user just logged out — if so, DON'T auto-trigger
+      try {
+        const justLoggedOut = await AsyncStorage.getItem(JUST_LOGGED_OUT_KEY);
+        if (justLoggedOut === "true") {
+          // Clear the flag and don't auto-trigger
+          await AsyncStorage.removeItem(JUST_LOGGED_OUT_KEY);
+          return;
+        }
+      } catch {}
+      // Safe to auto-trigger biometric
       handleBiometricLogin();
     }
-  }, [biometricEnabled, biometricAvailable]);
+  };
 
   // =========================================================================
   // BIOMETRIC LOGIN
@@ -123,7 +141,6 @@ export default function LoginScreen() {
           clearError();
           const success = await login(credentials.email, credentials.password);
           if (success) {
-            // Save email for next time
             await AsyncStorage.setItem(SAVED_EMAIL_KEY, credentials.email);
           }
         } else {
@@ -131,6 +148,9 @@ export default function LoginScreen() {
             "No Saved Credentials",
             "Please sign in with your password first to enable biometric login."
           );
+          // Disable biometric since no credentials
+          await AsyncStorage.removeItem(BIOMETRIC_ENABLED_KEY);
+          setBiometricEnabled(false);
         }
       }
     } catch {
@@ -143,7 +163,14 @@ export default function LoginScreen() {
   // =========================================================================
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) return;
+    if (!email.trim()) {
+      useAuthStore.setState({ error: "Please enter your email address" });
+      return;
+    }
+    if (!password.trim()) {
+      useAuthStore.setState({ error: "Please enter your password" });
+      return;
+    }
     clearError();
 
     const success = await login(email.trim(), password);
@@ -152,7 +179,7 @@ export default function LoginScreen() {
       // Save email for next login
       await AsyncStorage.setItem(SAVED_EMAIL_KEY, email.trim());
 
-      // Save credentials if remember me is on
+      // Save credentials for biometric login if remember me is on
       if (rememberMe) {
         await SecureStore.setItemAsync(
           SAVED_CREDENTIALS_KEY,
@@ -165,7 +192,15 @@ export default function LoginScreen() {
             promptEnableBiometric();
           }, 1000);
         }
+      } else {
+        // If remember me is off, clear saved credentials
+        await SecureStore.deleteItemAsync(SAVED_CREDENTIALS_KEY);
+        await AsyncStorage.removeItem(BIOMETRIC_ENABLED_KEY);
+        setBiometricEnabled(false);
       }
+
+      // Clear the just-logged-out flag on successful login
+      await AsyncStorage.removeItem(JUST_LOGGED_OUT_KEY);
     }
   };
 
@@ -428,7 +463,7 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Biometric Login Button */}
+            {/* Biometric Login Button - always show if biometric is enabled and available */}
             {biometricEnabled && biometricAvailable && (
               <TouchableOpacity
                 style={styles.biometricButton}
@@ -441,6 +476,29 @@ export default function LoginScreen() {
                   color="#3B82F6"
                 />
                 <Text style={styles.biometricButtonText}>Sign in with {biometricType}</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Show option to enable biometric if available but not enabled */}
+            {biometricAvailable && !biometricEnabled && initDone && (
+              <TouchableOpacity
+                style={styles.biometricButton}
+                onPress={() => {
+                  Alert.alert(
+                    `Enable ${biometricType}`,
+                    `Sign in with your password first. After a successful login, you'll be asked to enable ${biometricType}.`
+                  );
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={biometricType === "Face ID" ? "scan-outline" : "finger-print-outline"}
+                  size={22}
+                  color="#5A6A80"
+                />
+                <Text style={[styles.biometricButtonText, { color: "#5A6A80" }]}>
+                  Sign in with {biometricType}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
