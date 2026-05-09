@@ -28,6 +28,8 @@ function AppDrawer() {
           backgroundColor: "#0A1628",
           width: 300,
         },
+        swipeEdgeWidth: 50,
+        swipeMinDistance: 10,
       }}
     >
       <Drawer.Screen name="MainScreens" component={MainScreens} />

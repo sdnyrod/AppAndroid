@@ -313,7 +313,8 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 8,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#1A2A40",
   },
@@ -425,9 +426,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 11,
+    paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 8,
+    minHeight: 44,
   },
   groupHeaderActive: {
     backgroundColor: "#0F1D32",
@@ -465,7 +467,7 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 9,
+    paddingVertical: 11,
     paddingHorizontal: 12,
     borderRadius: 6,
     marginLeft: 22,

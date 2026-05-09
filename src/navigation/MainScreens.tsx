@@ -54,9 +54,17 @@ function DrawerToggle() {
   return (
     <TouchableOpacity
       onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-      style={{ marginLeft: 16 }}
+      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      style={{
+        marginLeft: 16,
+        width: 40,
+        height: 40,
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+      activeOpacity={0.6}
     >
-      <Ionicons name="menu" size={24} color="#FFFFFF" />
+      <Ionicons name="menu" size={26} color="#FFFFFF" />
     </TouchableOpacity>
   );
 }
