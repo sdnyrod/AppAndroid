@@ -61,7 +61,7 @@ export default function DashboardScreen() {
   const navigation = useNavigation<any>();
   const user = useAuthStore((s) => s.user);
   const { has, hasAny, isOwner, loaded: permissionsLoaded } = usePermissionsStore();
-  const labels = useLanguageStore((s) => s.labels);
+  const { labels, t } = useLanguageStore();
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
   const [basicStats, setBasicStats] = useState<BasicStats | null>(null);
   const [activeEntries, setActiveEntries] = useState<ActiveEntry[]>([]);
