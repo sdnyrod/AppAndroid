@@ -111,7 +111,7 @@ export default function TimeTrackingScreen() {
         setActiveEntry({
           id: active.id,
           projectId: active.projectId,
-          projectName: active.project?.name || active.projectName || "Project",
+          projectName: active.project?.name || active.projectName || t("common.project"),
           clockIn: active.clockIn || active.clockInTime || "",
         });
       } else {
@@ -127,7 +127,7 @@ export default function TimeTrackingScreen() {
           const clockIn = entry.clockIn || entry.clockInTime || e.clockIn || "";
           return {
             id: user.id || entry.userId || entry.id || Math.random(),
-            name: user.name || e.employeeName || e.userName || "Worker",
+            name: user.name || e.employeeName || e.userName || t("common.worker"),
             status: "working" as const,
             projectName: project.name || e.projectName || "",
             clockIn,
@@ -177,7 +177,7 @@ export default function TimeTrackingScreen() {
 
   const handleClockIn = async () => {
     if (!selectedProject) {
-      Alert.alert("Select Project", "Please select a project before clocking in.");
+      Alert.alert(t("time.selectProject"), "Please select a project before clocking in.");
       return;
     }
     setClockingIn(true);
@@ -251,7 +251,7 @@ export default function TimeTrackingScreen() {
           <View style={styles.statusSection}>
             <View style={styles.statusBanner}>
               <View style={styles.statusDotGreen} />
-              <Text style={styles.statusLabel}>CLOCKED IN</Text>
+              <Text style={styles.statusLabel}>{t("time.clockedIn")}</Text>
             </View>
             <Text style={styles.statusProject}>{activeEntry.projectName}</Text>
             <Text style={styles.statusTime}>
@@ -266,9 +266,9 @@ export default function TimeTrackingScreen() {
           <View style={styles.projectSection}>
             <View style={styles.statusBanner}>
               <View style={styles.statusDotGray} />
-              <Text style={styles.statusLabelGray}>NOT CLOCKED IN</Text>
+              <Text style={styles.statusLabelGray}>{t("time.notClockedIn")}</Text>
             </View>
-            <Text style={styles.selectLabel}>Select a project and tap to start</Text>
+            <Text style={styles.selectLabel}>{t("time.selectProjectTap")}</Text>
 
             {/* Project Search Selector */}
             <SearchableSelect
@@ -298,7 +298,7 @@ export default function TimeTrackingScreen() {
               ) : (
                 <>
                   <Ionicons name="stop-circle" size={36} color="#FFFFFF" />
-                  <Text style={styles.circularButtonText}>CLOCK OUT</Text>
+                  <Text style={styles.circularButtonText}>{t("time.clockOut")}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -314,7 +314,7 @@ export default function TimeTrackingScreen() {
               ) : (
                 <>
                   <Ionicons name="play-circle" size={36} color="#FFFFFF" />
-                  <Text style={styles.circularButtonText}>CLOCK IN</Text>
+                  <Text style={styles.circularButtonText}>{t("time.clockIn")}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -327,7 +327,7 @@ export default function TimeTrackingScreen() {
         <View style={styles.crewSection}>
           <View style={styles.crewHeader}>
             <Ionicons name="people" size={18} color="#FFFFFF" />
-            <Text style={styles.crewTitle}>Crew Management</Text>
+            <Text style={styles.crewTitle}>{t("time.crewManagement")}</Text>
           </View>
 
           {crewWorking.length > 0 && (
@@ -347,7 +347,7 @@ export default function TimeTrackingScreen() {
                   </View>
                   <TouchableOpacity style={styles.clockOutBadge}>
                     <Ionicons name="stop" size={10} color="#FFFFFF" />
-                    <Text style={styles.clockOutBadgeText}>Out</Text>
+                    <Text style={styles.clockOutBadgeText}>{t("time.out")}</Text>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -357,7 +357,7 @@ export default function TimeTrackingScreen() {
           {crewWorking.length === 0 && (
             <View style={styles.emptyCrewCard}>
               <Ionicons name="people-outline" size={20} color="#5A6A80" />
-              <Text style={styles.emptyCrewText}>No workers currently clocked in</Text>
+              <Text style={styles.emptyCrewText}>{t("time.noWorkersClockedIn")}</Text>
             </View>
           )}
         </View>

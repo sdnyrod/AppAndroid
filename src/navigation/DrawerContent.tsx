@@ -14,7 +14,7 @@ import { DrawerContentComponentProps } from "@react-navigation/drawer";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/store/authStore";
 import { useLanguageStore, AppLanguage } from "@/store/languageStore";
-import { MENU_GROUPS, MenuGroup, getFilteredMenuGroups } from "./menuConfig";
+import { buildMenuGroups, MenuGroup, getFilteredMenuGroups } from "./menuConfig";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePermissionsStore } from "@/store/permissionsStore";
 
@@ -117,18 +117,18 @@ function AccordionGroup({
 
 export default function DrawerContent({ navigation }: DrawerContentComponentProps) {
   const { user, logout } = useAuthStore();
-  const { language, setLanguage, labels } = useLanguageStore();
+  const { language, setLanguage, labels, t } = useLanguageStore();
   const insets = useSafeAreaInsets();
 
   // Track which groups are expanded (start with none expanded for clean look)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const { has, hasAny, isOwner } = usePermissionsStore();
-  const menuGroups = isOwner ? MENU_GROUPS : getFilteredMenuGroups(has, hasAny);
+  const menuGroups = isOwner ? buildMenuGroups(labels) : getFilteredMenuGroups(labels, has, hasAny);
 
   const displayRole = (() => {
     const role = user?.role || "employee";
-    if (role === "owner" || role === "admin") return "Owner";
+    if (role === "owner" || role === "admin") return t("profile.owner");
     return role.charAt(0).toUpperCase() + role.slice(1);
   })();
 
@@ -250,7 +250,7 @@ export default function DrawerContent({ navigation }: DrawerContentComponentProp
           </View>
           <View style={styles.userDetails}>
             <Text style={styles.userName} numberOfLines={1}>
-              {user?.name || "User"}
+              {user?.name || t("common.user")}
             </Text>
             <Text style={styles.userRole}>{displayRole}</Text>
           </View>

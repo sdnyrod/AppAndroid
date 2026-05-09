@@ -106,7 +106,7 @@ export default function ProfileScreen() {
         </View>
         <Text style={styles.name}>{user?.name || "User"}</Text>
         <Text style={styles.roleText}>
-          {isOwner ? "Owner" : role.charAt(0).toUpperCase() + role.slice(1)}
+          {isOwner ? t("profile.owner") : role.charAt(0).toUpperCase() + role.slice(1)}
         </Text>
       </View>
 
@@ -130,7 +130,7 @@ export default function ProfileScreen() {
           }}
         >
           <Ionicons name="key-outline" size={20} color="#3B82F6" />
-          <Text style={styles.changePasswordText}>Change Password</Text>
+          <Text style={styles.changePasswordText}>{t("profile.changePassword")}</Text>
           <Ionicons
             name={showPasswordForm ? "chevron-up" : "chevron-down"}
             size={18}
@@ -219,7 +219,7 @@ export default function ProfileScreen() {
               {changingPassword ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Text style={styles.submitButtonText}>Update Password</Text>
+                <Text style={styles.submitButtonText}>{t("profile.updatePassword")}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -229,7 +229,7 @@ export default function ProfileScreen() {
       {/* Logout */}
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-        <Text style={styles.logoutText}>Sign Out</Text>
+        <Text style={styles.logoutText}>{t("profile.signOut")}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

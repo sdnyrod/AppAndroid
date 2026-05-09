@@ -10,6 +10,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { apiClient } from "@/services/api";
 import { useAuthStore } from "@/store/authStore";
+import { useLanguageStore } from "@/store/languageStore";
 
 interface RevenueData {
   period: {
@@ -32,6 +33,7 @@ interface RevenueData {
 }
 
 export default function CommissionsScreen() {
+  const { t } = useLanguageStore();
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -93,7 +95,7 @@ export default function CommissionsScreen() {
 
       {/* Lifetime Earnings */}
       <View style={styles.earningsCard}>
-        <Text style={styles.earningsLabel}>CONFIRMED EARNINGS</Text>
+        <Text style={styles.earningsLabel}>{t("commissions.confirmedEarnings")}</Text>
         <Text style={styles.earningsValue}>
           {revenue ? formatCurrency(revenue.accumulated.commission) : "$0.00"}
         </Text>
@@ -104,20 +106,20 @@ export default function CommissionsScreen() {
 
       {/* Period Stats */}
       <View style={styles.periodCard}>
-        <Text style={styles.periodTitle}>This Month</Text>
+        <Text style={styles.periodTitle}>{t("commissions.thisMonth")}</Text>
         <View style={styles.periodGrid}>
           <View style={styles.periodStat}>
             <Text style={styles.periodValue}>
               {revenue ? formatCurrency(revenue.period.revenue) : "$0.00"}
             </Text>
-            <Text style={styles.periodLabel}>Revenue</Text>
+            <Text style={styles.periodLabel}>{t("commissions.revenue")}</Text>
           </View>
           <View style={styles.periodDivider} />
           <View style={styles.periodStat}>
             <Text style={[styles.periodValue, styles.commissionValue]}>
               {revenue ? formatCurrency(revenue.period.commission) : "$0.00"}
             </Text>
-            <Text style={styles.periodLabel}>Your Commission</Text>
+            <Text style={styles.periodLabel}>{t("commissions.yourCommission")}</Text>
           </View>
           <View style={styles.periodDivider} />
           <View style={styles.periodStat}>
@@ -126,7 +128,7 @@ export default function CommissionsScreen() {
                 ? `${(revenue.period.commissionRate * 100).toFixed(0)}%`
                 : "—"}
             </Text>
-            <Text style={styles.periodLabel}>Rate</Text>
+            <Text style={styles.periodLabel}>{t("common.rate")}</Text>
           </View>
         </View>
       </View>
@@ -134,7 +136,7 @@ export default function CommissionsScreen() {
       {/* Monthly Breakdown */}
       {revenue?.monthly && revenue.monthly.length > 0 && (
         <View style={styles.monthlySection}>
-          <Text style={styles.sectionTitle}>Monthly Detail</Text>
+          <Text style={styles.sectionTitle}>{t("commissions.monthlyDetail")}</Text>
           {revenue.monthly.map((month, idx) => (
             <View key={idx} style={styles.monthRow}>
               <Text style={styles.monthLabel}>{month.month}</Text>

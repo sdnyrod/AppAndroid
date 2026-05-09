@@ -11,6 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useLanguageStore } from "@/store/languageStore";
 
 interface SearchableSelectItem {
   id: number;
@@ -44,6 +45,7 @@ export default function SearchableSelect({
   iconColor = "#3B82F6",
   label,
 }: SearchableSelectProps) {
+  const { t } = useLanguageStore();
   const [showModal, setShowModal] = useState(false);
   const [searchText, setSearchText] = useState("");
 
@@ -119,7 +121,7 @@ export default function SearchableSelect({
               <Ionicons name="search" size={18} color="#8892A4" />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Type to search..."
+                placeholder={t("common.typeToSearch")}
                 placeholderTextColor="#5A6A80"
                 value={searchText}
                 onChangeText={setSearchText}
@@ -167,7 +169,7 @@ export default function SearchableSelect({
                 <View style={styles.emptyState}>
                   <Ionicons name="search-outline" size={32} color="#5A6A80" />
                   <Text style={styles.emptyText}>
-                    {searchText ? "No results found" : "No items available"}
+                    {searchText ? t("common.noResultsFound") : t("common.noItemsAvailable")}
                   </Text>
                 </View>
               }

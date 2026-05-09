@@ -48,7 +48,7 @@ export default function ActiveWorkersScreen() {
           const clockIn = entry.clockIn || entry.clockInTime || item.clockIn || "";
           return {
             id: entry.id || user.id || Math.random(),
-            name: user.name || item.userName || item.employeeName || "Worker",
+            name: user.name || item.userName || item.employeeName || t("common.worker"),
             projectName: project.name || item.projectName || "—",
             clockIn,
             elapsed: getElapsedTime(clockIn),
@@ -109,7 +109,7 @@ export default function ActiveWorkersScreen() {
       </View>
       <View style={styles.activeBadge}>
         <View style={styles.activeDot} />
-        <Text style={styles.activeText}>Active</Text>
+        <Text style={styles.activeText}>{t("common.active")}</Text>
       </View>
     </View>
   );

@@ -156,7 +156,7 @@ export default function ExpensesScreen() {
 
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission Required", "Camera access is needed to scan receipts.");
+      Alert.alert(t("expenses.permissionRequired"), "Camera access is needed to scan receipts.");
       return;
     }
 
@@ -350,7 +350,7 @@ export default function ExpensesScreen() {
           expenseDate: formData.expenseDate,
         });
         if (res.ok) {
-          Alert.alert("Success", "Expense updated.");
+          Alert.alert(t("common.success"), "Expense updated.");
         } else {
           Alert.alert(t("common.error"), res.error || "Failed to update expense.");
           return;
@@ -499,7 +499,7 @@ export default function ExpensesScreen() {
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.scanButton} onPress={handleScanReceipt}>
             <Ionicons name="camera-outline" size={20} color="#FFF" />
-            <Text style={styles.scanButtonText}>Scan Receipt</Text>
+            <Text style={styles.scanButtonText}>{t("expenses.scanReceipt")}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.pickButton} onPress={handlePickReceipt}>
             <Ionicons name="images-outline" size={20} color="#3B82F6" />
@@ -524,7 +524,7 @@ export default function ExpensesScreen() {
       {!selectedProjectId && (
         <View style={styles.promptWrap}>
           <Ionicons name="arrow-up-circle-outline" size={48} color="#3B82F6" />
-          <Text style={styles.promptTitle}>Select a Job First</Text>
+          <Text style={styles.promptTitle}>{t("expenses.selectJobFirst")}</Text>
           <Text style={styles.promptSubtext}>
             Choose a project above to view expenses and scan receipts
           </Text>
@@ -536,7 +536,7 @@ export default function ExpensesScreen() {
         <View style={styles.scanningOverlay}>
           <ActivityIndicator size="large" color="#3B82F6" />
           <Text style={styles.scanningText}>Reading receipt with AI...</Text>
-          <Text style={styles.scanningSubtext}>Extracting vendor, items, and totals</Text>
+          <Text style={styles.scanningSubtext}>{t("expenses.extractingData")}</Text>
         </View>
       )}
 
@@ -545,8 +545,8 @@ export default function ExpensesScreen() {
         filteredExpenses.length === 0 ? (
           <View style={styles.centered}>
             <Ionicons name="receipt-outline" size={48} color="#5A6A80" />
-            <Text style={styles.emptyText}>No expenses for this project</Text>
-            <Text style={styles.emptySubtext}>Scan a receipt or add manually</Text>
+            <Text style={styles.emptyText}>{t("expenses.noExpenses")}</Text>
+            <Text style={styles.emptySubtext}>{t("expenses.scanOrAdd")}</Text>
           </View>
         ) : (
           <FlatList
@@ -567,46 +567,46 @@ export default function ExpensesScreen() {
           <View style={styles.scanConfirmBox}>
             <View style={styles.scanConfirmHeader}>
               <Ionicons name="checkmark-circle" size={28} color="#10B981" />
-              <Text style={styles.scanConfirmTitle}>Receipt Scanned</Text>
+              <Text style={styles.scanConfirmTitle}>{t("expenses.receiptScanned")}</Text>
             </View>
 
             <View style={styles.scanConfirmBody}>
               {/* Project (already selected) */}
               <View style={styles.scanRow}>
-                <Text style={styles.scanLabel}>Project</Text>
+                <Text style={styles.scanLabel}>{t("common.project")}</Text>
                 <Text style={styles.scanValue}>{getProjectName(formData.projectId)}</Text>
               </View>
 
               {/* Vendor */}
               {formData.vendor ? (
                 <View style={styles.scanRow}>
-                  <Text style={styles.scanLabel}>Vendor</Text>
+                  <Text style={styles.scanLabel}>{t("vendors.vendor")}</Text>
                   <Text style={styles.scanValue}>{formData.vendor}</Text>
                 </View>
               ) : null}
 
               {/* Description */}
               <View style={styles.scanRow}>
-                <Text style={styles.scanLabel}>Description</Text>
+                <Text style={styles.scanLabel}>{t("common.description")}</Text>
                 <Text style={styles.scanValue} numberOfLines={2}>{formData.description}</Text>
               </View>
 
               {/* Amount */}
               <View style={styles.scanRow}>
-                <Text style={styles.scanLabel}>Amount</Text>
+                <Text style={styles.scanLabel}>{t("common.amount")}</Text>
                 <Text style={[styles.scanValue, styles.scanAmount]}>${formData.amount}</Text>
               </View>
 
               {/* Date */}
               <View style={styles.scanRow}>
-                <Text style={styles.scanLabel}>Date</Text>
+                <Text style={styles.scanLabel}>{t("common.date")}</Text>
                 <Text style={styles.scanValue}>{formData.expenseDate}</Text>
               </View>
 
               {/* Receipt attached indicator */}
               {formData.receiptUrl ? (
                 <View style={styles.scanRow}>
-                  <Text style={styles.scanLabel}>Receipt</Text>
+                  <Text style={styles.scanLabel}>{t("expenses.receipt")}</Text>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                     <Ionicons name="document-attach" size={14} color="#10B981" />
                     <Text style={[styles.scanValue, { color: "#10B981" }]}>Attached ✓</Text>
@@ -619,7 +619,7 @@ export default function ExpensesScreen() {
             <View style={styles.scanConfirmActions}>
               <TouchableOpacity style={styles.editScanBtn} onPress={handleEditScan}>
                 <Ionicons name="pencil-outline" size={16} color="#3B82F6" />
-                <Text style={styles.editScanText}>Edit</Text>
+                <Text style={styles.editScanText}>{t("common.edit")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.confirmScanBtn, submitting && { opacity: 0.5 }]}
@@ -631,7 +631,7 @@ export default function ExpensesScreen() {
                 ) : (
                   <>
                     <Ionicons name="checkmark" size={18} color="#FFF" />
-                    <Text style={styles.confirmScanText}>Confirm & Save</Text>
+                    <Text style={styles.confirmScanText}>{t("expenses.confirmSave")}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -641,7 +641,7 @@ export default function ExpensesScreen() {
               style={styles.cancelScanBtn}
               onPress={() => { setShowScanConfirm(false); setScanResult(null); }}
             >
-              <Text style={styles.cancelScanText}>Cancel</Text>
+              <Text style={styles.cancelScanText}>{t("common.cancel")}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -658,10 +658,10 @@ export default function ExpensesScreen() {
             <Text style={styles.confirmText}>This action cannot be undone.</Text>
             <View style={styles.confirmActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setDeleteConfirmId(null)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t("common.cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteConfirmId && handleDelete(deleteConfirmId)}>
-                <Text style={styles.deleteBtnText}>Delete</Text>
+                <Text style={styles.deleteBtnText}>{t("common.delete")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -690,10 +690,10 @@ export default function ExpensesScreen() {
         >
           <View style={styles.formHeader}>
             <TouchableOpacity onPress={() => { setShowForm(false); resetForm(); }}>
-              <Text style={styles.formCancel}>Cancel</Text>
+              <Text style={styles.formCancel}>{t("common.cancel")}</Text>
             </TouchableOpacity>
             <Text style={styles.formTitle}>
-              {editingExpense ? t("expenses.editExpense") : scanResult ? t("expenses.editScannedData") : "New Expense"}
+              {editingExpense ? t("expenses.editExpense") : scanResult ? t("expenses.editScannedData") : t("expenses.newExpense")}
             </Text>
             <TouchableOpacity onPress={handleSubmit} disabled={submitting}>
               <Text style={[styles.formSave, submitting && { opacity: 0.5 }]}>
@@ -709,13 +709,13 @@ export default function ExpensesScreen() {
                 <Image source={{ uri: formData.receiptUrl }} style={styles.receiptThumb} resizeMode="cover" />
                 <View style={styles.receiptBadge}>
                   <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                  <Text style={styles.receiptBadgeText}>Receipt attached</Text>
+                  <Text style={styles.receiptBadgeText}>{t("expenses.receiptAttached")}</Text>
                 </View>
               </View>
             ) : null}
 
             {/* Project (locked to selected) */}
-            <Text style={styles.fieldLabel}>Project</Text>
+            <Text style={styles.fieldLabel}>{t("common.project")}</Text>
             <View style={[styles.pickerButton, { opacity: 0.7 }]}>
               <Ionicons name="business-outline" size={18} color="#3B82F6" />
               <Text style={[styles.pickerText, { marginLeft: 8 }]}>
@@ -725,7 +725,7 @@ export default function ExpensesScreen() {
             </View>
 
             {/* Category Picker */}
-            <Text style={styles.fieldLabel}>Category</Text>
+            <Text style={styles.fieldLabel}>{t("common.category")}</Text>
             <TouchableOpacity style={styles.pickerButton} onPress={() => setShowCategoryPicker(true)}>
               <Ionicons name={getCategoryIcon(formData.category) as any} size={18} color="#3B82F6" />
               <Text style={[styles.pickerText, { marginLeft: 8 }]}>{getCategoryLabel(formData.category)}</Text>
@@ -743,7 +743,7 @@ export default function ExpensesScreen() {
             />
 
             {/* Vendor */}
-            <Text style={styles.fieldLabel}>Vendor</Text>
+            <Text style={styles.fieldLabel}>{t("vendors.vendor")}</Text>
             <TextInput
               style={styles.input}
               value={formData.vendor}
@@ -764,7 +764,7 @@ export default function ExpensesScreen() {
             />
 
             {/* Date */}
-            <Text style={styles.fieldLabel}>Expense Date</Text>
+            <Text style={styles.fieldLabel}>{t("expenses.expenseDate")}</Text>
             <TextInput
               style={styles.input}
               value={formData.expenseDate}
@@ -774,7 +774,7 @@ export default function ExpensesScreen() {
             />
 
             {/* Notes */}
-            <Text style={styles.fieldLabel}>Notes</Text>
+            <Text style={styles.fieldLabel}>{t("common.notes")}</Text>
             <TextInput
               style={[styles.input, { minHeight: 80, textAlignVertical: "top" }]}
               value={formData.notes}
@@ -792,7 +792,7 @@ export default function ExpensesScreen() {
       <Modal visible={showCategoryPicker} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.pickerModal}>
-            <Text style={styles.pickerModalTitle}>Select Category</Text>
+            <Text style={styles.pickerModalTitle}>{t("expenses.selectCategory")}</Text>
             {CATEGORY_KEYS.map((cat) => (
               <TouchableOpacity
                 key={cat.value}
@@ -805,7 +805,7 @@ export default function ExpensesScreen() {
               </TouchableOpacity>
             ))}
             <TouchableOpacity style={styles.pickerClose} onPress={() => setShowCategoryPicker(false)}>
-              <Text style={styles.pickerCloseText}>Cancel</Text>
+              <Text style={styles.pickerCloseText}>{t("common.cancel")}</Text>
             </TouchableOpacity>
           </View>
         </View>

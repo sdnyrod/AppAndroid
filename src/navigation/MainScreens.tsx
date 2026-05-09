@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, DrawerActions } from "@react-navigation/native";
+import { useLanguageStore } from "@/store/languageStore";
 
 // Screens
 import DashboardScreen from "@/screens/main/DashboardScreen";
@@ -77,68 +78,70 @@ const screenOptions = {
 };
 
 export default function MainScreens() {
+  const { labels, t } = useLanguageStore();
+
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       {/* Dashboard */}
-      <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ title: "Dashboard" }} />
+      <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ title: labels.dashboard }} />
 
       {/* Operations */}
-      <Stack.Screen name="TimeTracking" component={TimeTrackingScreen} options={{ title: "Time Tracking" }} />
-      <Stack.Screen name="MyHours" component={MyHoursScreen} options={{ title: "My Hours" }} />
-      <Stack.Screen name="DailyLogs" component={DailyLogsScreen} options={{ title: "Daily Logs" }} />
-      <Stack.Screen name="FieldMedia" component={FieldMediaScreen} options={{ title: "Field Media" }} />
-      <Stack.Screen name="ActiveWorkers" component={ActiveWorkersScreen} options={{ title: "Active Workers" }} />
-      <Stack.Screen name="Projects" component={ProjectsScreen} options={{ title: "Projects" }} />
-      <Stack.Screen name="LiveMap" component={LiveMapScreen} options={{ title: "Live Map" }} />
-      <Stack.Screen name="JobSchedule" component={JobScheduleScreen} options={{ title: "Job Schedule" }} />
-      <Stack.Screen name="Contractors" component={ContractorsScreen} options={{ title: "Contractors Hub" }} />
+      <Stack.Screen name="TimeTracking" component={TimeTrackingScreen} options={{ title: labels.timeTracking }} />
+      <Stack.Screen name="MyHours" component={MyHoursScreen} options={{ title: labels.myHours }} />
+      <Stack.Screen name="DailyLogs" component={DailyLogsScreen} options={{ title: labels.dailyLogs }} />
+      <Stack.Screen name="FieldMedia" component={FieldMediaScreen} options={{ title: labels.fieldMedia }} />
+      <Stack.Screen name="ActiveWorkers" component={ActiveWorkersScreen} options={{ title: labels.activeWorkers }} />
+      <Stack.Screen name="Projects" component={ProjectsScreen} options={{ title: labels.projects }} />
+      <Stack.Screen name="LiveMap" component={LiveMapScreen} options={{ title: labels.liveMap }} />
+      <Stack.Screen name="JobSchedule" component={JobScheduleScreen} options={{ title: labels.jobSchedule }} />
+      <Stack.Screen name="Contractors" component={ContractorsScreen} options={{ title: labels.contractors }} />
 
       {/* Team & Payroll */}
-      <Stack.Screen name="Employees" component={EmployeesScreen} options={{ title: "Employees" }} />
-      <Stack.Screen name="Payroll" component={PayrollScreen} options={{ title: "Payroll" }} />
-      <Stack.Screen name="ProductionPay" component={ProductionPayScreen} options={{ title: "Production Pay" }} />
+      <Stack.Screen name="Employees" component={EmployeesScreen} options={{ title: labels.employees }} />
+      <Stack.Screen name="Payroll" component={PayrollScreen} options={{ title: labels.payroll }} />
+      <Stack.Screen name="ProductionPay" component={ProductionPayScreen} options={{ title: labels.productionPay }} />
 
       {/* Job Costing */}
-      <Stack.Screen name="Estimates" component={EstimatesScreen} options={{ title: "Estimates" }} />
-      <Stack.Screen name="Receivables" component={ReceivablesScreen} options={{ title: "Receivables" }} />
-      <Stack.Screen name="Expenses" component={ExpensesScreen} options={{ title: "Expenses" }} />
-      <Stack.Screen name="JobCost" component={JobCostScreen} options={{ title: "Job Cost" }} />
+      <Stack.Screen name="Estimates" component={EstimatesScreen} options={{ title: labels.estimates }} />
+      <Stack.Screen name="Receivables" component={ReceivablesScreen} options={{ title: labels.receivables }} />
+      <Stack.Screen name="Expenses" component={ExpensesScreen} options={{ title: labels.expenses }} />
+      <Stack.Screen name="JobCost" component={JobCostScreen} options={{ title: labels.jobCost }} />
 
       {/* Fleet */}
-      <Stack.Screen name="Vehicles" component={VehiclesScreen} options={{ title: "Vehicles" }} />
-      <Stack.Screen name="Dispatch" component={DispatchScreen} options={{ title: "Dispatch Board" }} />
-      <Stack.Screen name="TripLog" component={TripLogScreen} options={{ title: "Trip Log" }} />
-      <Stack.Screen name="MileageLog" component={MileageLogScreen} options={{ title: "Mileage Log" }} />
-      <Stack.Screen name="FleetCostReport" component={FleetCostReportScreen} options={{ title: "Fleet Cost Report" }} />
+      <Stack.Screen name="Vehicles" component={VehiclesScreen} options={{ title: labels.vehicles }} />
+      <Stack.Screen name="Dispatch" component={DispatchScreen} options={{ title: labels.dispatch }} />
+      <Stack.Screen name="TripLog" component={TripLogScreen} options={{ title: labels.tripLog }} />
+      <Stack.Screen name="MileageLog" component={MileageLogScreen} options={{ title: labels.mileageLog }} />
+      <Stack.Screen name="FleetCostReport" component={FleetCostReportScreen} options={{ title: labels.fleetCostReport }} />
 
       {/* Inventory */}
-      <Stack.Screen name="MaterialCatalog" component={MaterialCatalogScreen} options={{ title: "Material Catalog" }} />
-      <Stack.Screen name="InventoryItems" component={InventoryItemsScreen} options={{ title: "Inventory Items" }} />
-      <Stack.Screen name="Warehouses" component={WarehousesScreen} options={{ title: "Warehouses" }} />
-      <Stack.Screen name="Vendors" component={VendorsScreen} options={{ title: "Vendors" }} />
-      <Stack.Screen name="PurchaseOrders" component={PurchaseOrdersScreen} options={{ title: "Purchase Orders" }} />
-      <Stack.Screen name="VendorInvoices" component={VendorInvoicesScreen} options={{ title: "Vendor Invoices" }} />
+      <Stack.Screen name="MaterialCatalog" component={MaterialCatalogScreen} options={{ title: labels.materialCatalog }} />
+      <Stack.Screen name="InventoryItems" component={InventoryItemsScreen} options={{ title: labels.inventoryItems }} />
+      <Stack.Screen name="Warehouses" component={WarehousesScreen} options={{ title: labels.warehouses }} />
+      <Stack.Screen name="Vendors" component={VendorsScreen} options={{ title: labels.vendors }} />
+      <Stack.Screen name="PurchaseOrders" component={PurchaseOrdersScreen} options={{ title: labels.purchaseOrders }} />
+      <Stack.Screen name="VendorInvoices" component={VendorInvoicesScreen} options={{ title: labels.vendorInvoices }} />
 
       {/* Tools */}
-      <Stack.Screen name="SDSLibrary" component={SDSLibraryScreen} options={{ title: "SDS Library" }} />
-      <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: "Reports" }} />
-      <Stack.Screen name="LocationReport" component={LocationReportScreen} options={{ title: "Location Report" }} />
+      <Stack.Screen name="SDSLibrary" component={SDSLibraryScreen} options={{ title: labels.sdsLibrary }} />
+      <Stack.Screen name="Reports" component={ReportsScreen} options={{ title: labels.reports }} />
+      <Stack.Screen name="LocationReport" component={LocationReportScreen} options={{ title: labels.locationReport }} />
 
       {/* Referral */}
-      <Stack.Screen name="Referrals" component={ReferralsScreen} options={{ title: "Referral Program" }} />
+      <Stack.Screen name="Referrals" component={ReferralsScreen} options={{ title: labels.referrals }} />
 
       {/* Settings */}
-      <Stack.Screen name="Departments" component={DepartmentsScreen} options={{ title: "Departments" }} />
-      <Stack.Screen name="WorkTypes" component={WorkTypesScreen} options={{ title: "Work Types" }} />
-      <Stack.Screen name="Classifications" component={ClassificationsScreen} options={{ title: "Classifications" }} />
-      <Stack.Screen name="JobRoles" component={JobRolesScreen} options={{ title: "Job Roles" }} />
-      <Stack.Screen name="CompanyProfile" component={CompanyProfileScreen} options={{ title: "Company Profile" }} />
-      <Stack.Screen name="Billing" component={BillingScreen} options={{ title: "Billing & Subscription" }} />
-      <Stack.Screen name="AccessRoles" component={AccessRolesScreen} options={{ title: "Access Roles" }} />
-      <Stack.Screen name="AdminPanel" component={AdminPanelScreen} options={{ title: "Admin Panel" }} />
+      <Stack.Screen name="Departments" component={DepartmentsScreen} options={{ title: labels.departments }} />
+      <Stack.Screen name="WorkTypes" component={WorkTypesScreen} options={{ title: labels.workTypes }} />
+      <Stack.Screen name="Classifications" component={ClassificationsScreen} options={{ title: labels.classifications }} />
+      <Stack.Screen name="JobRoles" component={JobRolesScreen} options={{ title: labels.jobRoles }} />
+      <Stack.Screen name="CompanyProfile" component={CompanyProfileScreen} options={{ title: labels.companyProfile }} />
+      <Stack.Screen name="Billing" component={BillingScreen} options={{ title: labels.billing }} />
+      <Stack.Screen name="AccessRoles" component={AccessRolesScreen} options={{ title: labels.accessRoles }} />
+      <Stack.Screen name="AdminPanel" component={AdminPanelScreen} options={{ title: labels.adminPanel }} />
 
       {/* Profile */}
-      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: "Profile" }} />
+      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: labels.profile }} />
     </Stack.Navigator>
   );
 }

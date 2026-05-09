@@ -62,6 +62,10 @@ export interface LanguageLabels {
   billing: string;
   accessRoles: string;
   adminPanel: string;
+  contractors: string;
+  fleetCostReport: string;
+  profile: string;
+  referrals: string;
   signOut: string;
   welcomeBack: string;
   noProjectsFound: string;
@@ -79,7 +83,7 @@ export interface LanguageLabels {
 function buildLegacyLabels(lang: AppLanguage): LanguageLabels {
   const t = translations[lang];
   return {
-    dashboard: t["dashboard.welcomeBack"] ? "Dashboard" : "Dashboard",
+    dashboard: t["dashboard.title"] || "Dashboard",
     fieldOperations: lang === "pt" ? "Operações de Campo" : lang === "es" ? "Operaciones de Campo" : "Field Operations",
     timeTracking: t["time.title"] || "Time Tracking",
     myHours: t["myHours.title"] || "My Hours",
@@ -127,6 +131,10 @@ function buildLegacyLabels(lang: AppLanguage): LanguageLabels {
     billing: t["settings.billing"] || "Billing & Subscription",
     accessRoles: t["settings.accessRoles"] || "Access Roles",
     adminPanel: t["settings.adminPanel"] || "Admin Panel",
+    contractors: t["contractors.title"] || "Contractors",
+    fleetCostReport: t["fleet.costReport"] || "Fleet Cost Report",
+    profile: t["profile.title"] || "Profile",
+    referrals: t["referrals.title"] || "Referral Program",
     signOut: t["auth.signOut"] || "Sign Out",
     welcomeBack: t["dashboard.welcomeBack"] || "Welcome back, ",
     noProjectsFound: t["projects.noProjects"] || "No projects found",

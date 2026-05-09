@@ -24,8 +24,8 @@ interface ScheduleEvent {
   materials: { scheduleId: number; materialName: string; estimatedQuantity: number; unit: string }[];
 }
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const WEEKDAYS = [t("days.sun"), t("days.mon"), t("days.tue"), t("days.wed"), t("days.thu"), t("days.fri"), t("days.sat")];
+const MONTHS = [t("months.january"), t("months.february"), t("months.march"), t("months.april"), t("months.may"), t("months.june"), t("months.july"), t("months.august"), t("months.september"), t("months.october"), t("months.november"), t("months.december")];
 
 function getDaysInMonth(year: number, month: number): Date[] {
   const days: Date[] = [];
@@ -194,7 +194,7 @@ export default function JobScheduleScreen() {
       {selectedEvents.length === 0 ? (
         <View style={styles.emptyCard}>
           <Ionicons name="calendar-outline" size={32} color="#5A6A80" />
-          <Text style={styles.emptyText}>No jobs scheduled for this day</Text>
+          <Text style={styles.emptyText}>{t("jobSchedule.noJobs")}</Text>
         </View>
       ) : (
         selectedEvents.map((event) => (
@@ -274,12 +274,12 @@ export default function JobScheduleScreen() {
               )}
               <TouchableOpacity style={[styles.actionBtn, styles.actionBtnEdit]}>
                 <Ionicons name="create-outline" size={14} color="#3B82F6" />
-                <Text style={[styles.actionBtnText, { color: "#3B82F6" }]}>Edit</Text>
+                <Text style={[styles.actionBtnText, { color: "#3B82F6" }]}>{t("common.edit")}</Text>
               </TouchableOpacity>
               {event.status !== "completed" && (
                 <TouchableOpacity style={[styles.actionBtn, styles.actionBtnCancel]}>
                   <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
-                  <Text style={[styles.actionBtnText, { color: "#EF4444" }]}>Cancel</Text>
+                  <Text style={[styles.actionBtnText, { color: "#EF4444" }]}>{t("common.cancel")}</Text>
                 </TouchableOpacity>
               )}
             </View>

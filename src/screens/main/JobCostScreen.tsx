@@ -204,19 +204,19 @@ export default function JobCostScreen() {
       {loadingCost ? (
         <View style={styles.loadingSection}>
           <ActivityIndicator size="small" color="#3B82F6" />
-          <Text style={styles.loadingText}>Loading cost data...</Text>
+          <Text style={styles.loadingText}>{t("jobCost.loadingCostData")}</Text>
         </View>
       ) : !costData || (costData.contractValue === 0 && costData.actualCost === 0) ? (
         <View style={styles.emptyCard}>
           <Ionicons name="analytics-outline" size={32} color="#5A6A80" />
-          <Text style={styles.emptyText}>No cost data available for this project</Text>
+          <Text style={styles.emptyText}>{t("jobCost.noCostData")}</Text>
         </View>
       ) : (
         <>
           {/* Budget Used Progress Bar */}
           <View style={styles.budgetSection}>
             <View style={styles.budgetHeader}>
-              <Text style={styles.budgetTitle}>Budget Used</Text>
+              <Text style={styles.budgetTitle}>{t("jobCost.budgetUsed")}</Text>
               <Text style={styles.budgetPercent}>{budgetUsed.toFixed(0)}%</Text>
             </View>
             <View style={styles.progressBar}>
@@ -227,27 +227,27 @@ export default function JobCostScreen() {
               ]} />
             </View>
             <View style={styles.budgetLabels}>
-              <Text style={styles.budgetLabel}>{formatCurrency(actualCost)} spent</Text>
-              <Text style={styles.budgetLabel}>{formatCurrency(contractValue)} budget</Text>
+              <Text style={styles.budgetLabel}>{formatCurrency(actualCost)} {t("jobCost.spent")}</Text>
+              <Text style={styles.budgetLabel}>{formatCurrency(contractValue)} {t("jobCost.budget")}</Text>
             </View>
           </View>
 
           {/* Metric Cards */}
           <View style={styles.metricsGrid}>
             <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Contract Value</Text>
+              <Text style={styles.metricLabel}>{t("jobCost.contractValue")}</Text>
               <Text style={[styles.metricValue, { color: "#3B82F6" }]}>{formatCurrency(contractValue)}</Text>
             </View>
             <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Actual Cost</Text>
+              <Text style={styles.metricLabel}>{t("jobCost.actualCost")}</Text>
               <Text style={[styles.metricValue, { color: "#F59E0B" }]}>{formatCurrency(actualCost)}</Text>
             </View>
             <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Labor Cost</Text>
+              <Text style={styles.metricLabel}>{t("jobCost.laborCost")}</Text>
               <Text style={[styles.metricValue, { color: "#8B5CF6" }]}>{formatCurrency(laborCost)}</Text>
             </View>
             <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Margin</Text>
+              <Text style={styles.metricLabel}>{t("jobCost.margin")}</Text>
               <Text style={[styles.metricValue, { color: margin >= 0 ? "#10B981" : "#EF4444" }]}>
                 {formatCurrency(margin)} ({marginPercent}%)
               </Text>
@@ -256,13 +256,13 @@ export default function JobCostScreen() {
 
           {/* Cost Breakdown */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Cost Breakdown</Text>
+            <Text style={styles.sectionTitle}>{t("jobCost.costBreakdown")}</Text>
             <View style={styles.breakdownCard}>
               {/* Labor */}
               <View style={styles.breakdownRow}>
                 <View style={styles.breakdownLeft}>
                   <View style={[styles.breakdownDot, { backgroundColor: "#3B82F6" }]} />
-                  <Text style={styles.breakdownName}>Labor</Text>
+                  <Text style={styles.breakdownName}>{t("jobCost.labor")}</Text>
                 </View>
                 <View style={styles.breakdownRight}>
                   <Text style={styles.breakdownValue}>{formatCurrency(laborCost)}</Text>
@@ -277,7 +277,7 @@ export default function JobCostScreen() {
               <View style={[styles.breakdownRow, { marginTop: 14 }]}>
                 <View style={styles.breakdownLeft}>
                   <View style={[styles.breakdownDot, { backgroundColor: "#10B981" }]} />
-                  <Text style={styles.breakdownName}>Materials</Text>
+                  <Text style={styles.breakdownName}>{t("jobCost.materials")}</Text>
                 </View>
                 <View style={styles.breakdownRight}>
                   <Text style={styles.breakdownValue}>{formatCurrency(materialsCost)}</Text>
@@ -292,7 +292,7 @@ export default function JobCostScreen() {
               <View style={[styles.breakdownRow, { marginTop: 14 }]}>
                 <View style={styles.breakdownLeft}>
                   <View style={[styles.breakdownDot, { backgroundColor: "#F59E0B" }]} />
-                  <Text style={styles.breakdownName}>Other</Text>
+                  <Text style={styles.breakdownName}>{t("jobCost.other")}</Text>
                 </View>
                 <View style={styles.breakdownRight}>
                   <Text style={styles.breakdownValue}>{formatCurrency(otherCost)}</Text>
@@ -308,7 +308,7 @@ export default function JobCostScreen() {
           {/* Worker Breakdown */}
           {costData.workerBreakdown && costData.workerBreakdown.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Worker Breakdown</Text>
+              <Text style={styles.sectionTitle}>{t("jobCost.workerBreakdown")}</Text>
               {costData.workerBreakdown.map((worker: WorkerBreakdownItem) => (
                 <View key={worker.workerId} style={styles.workerRow}>
                   <View style={styles.workerAvatar}>

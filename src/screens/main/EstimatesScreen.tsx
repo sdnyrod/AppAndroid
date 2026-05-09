@@ -319,7 +319,7 @@ function EstimateDetailView({ detail, onClose }: { detail: EstimateDetail; onClo
 
         {/* Project Info */}
         <View style={detailStyles.card}>
-          <Text style={detailStyles.sectionTitle}>Project</Text>
+          <Text style={detailStyles.sectionTitle}>{t("common.project")}</Text>
           <Text style={detailStyles.projectName}>{proj.name}</Text>
           {proj.clientName && <Text style={detailStyles.infoText}>Client: {proj.clientName}</Text>}
           {proj.address && <Text style={detailStyles.infoText}>Address: {proj.address}</Text>}
@@ -344,11 +344,11 @@ function EstimateDetailView({ detail, onClose }: { detail: EstimateDetail; onClo
         <View style={detailStyles.card}>
           <Text style={detailStyles.sectionTitle}>Financial Summary</Text>
           <View style={detailStyles.financialRow}>
-            <Text style={detailStyles.financialLabel}>Materials</Text>
+            <Text style={detailStyles.financialLabel}>{t("jobCost.materials")}</Text>
             <Text style={detailStyles.financialValue}>{formatCurrency(est.totalMaterials)}</Text>
           </View>
           <View style={detailStyles.financialRow}>
-            <Text style={detailStyles.financialLabel}>Labor</Text>
+            <Text style={detailStyles.financialLabel}>{t("jobCost.labor")}</Text>
             <Text style={detailStyles.financialValue}>{formatCurrency(est.totalLabor)}</Text>
           </View>
           <View style={detailStyles.financialRow}>
@@ -357,7 +357,7 @@ function EstimateDetailView({ detail, onClose }: { detail: EstimateDetail; onClo
           </View>
           <View style={detailStyles.divider} />
           <View style={detailStyles.financialRow}>
-            <Text style={detailStyles.financialLabel}>Total Cost</Text>
+            <Text style={detailStyles.financialLabel}>{t("estimates.totalCost")}</Text>
             <Text style={detailStyles.financialValueBold}>{formatCurrency(est.totalCost)}</Text>
           </View>
           {est.marginPercentage && parseFloat(est.marginPercentage) > 0 && (
@@ -368,7 +368,7 @@ function EstimateDetailView({ detail, onClose }: { detail: EstimateDetail; onClo
           )}
           {est.discountAmount && parseFloat(est.discountAmount) > 0 && (
             <View style={detailStyles.financialRow}>
-              <Text style={[detailStyles.financialLabel, { color: "#F87171" }]}>Discount</Text>
+              <Text style={[detailStyles.financialLabel, { color: "#F87171" }]}>{t("estimates.discount")}</Text>
               <Text style={[detailStyles.financialValue, { color: "#F87171" }]}>-{formatCurrency(est.discountAmount)}</Text>
             </View>
           )}
@@ -380,7 +380,7 @@ function EstimateDetailView({ detail, onClose }: { detail: EstimateDetail; onClo
           )}
           <View style={detailStyles.divider} />
           <View style={detailStyles.financialRow}>
-            <Text style={detailStyles.proposalLabel}>Proposal Value</Text>
+            <Text style={detailStyles.proposalLabel}>{t("estimates.proposalValue")}</Text>
             <Text style={detailStyles.proposalValue}>{formatCurrency(est.proposalValue)}</Text>
           </View>
         </View>
@@ -440,7 +440,7 @@ function EstimateDetailView({ detail, onClose }: { detail: EstimateDetail; onClo
         {/* Scope of Work */}
         {est.scopeOfWork && (
           <View style={detailStyles.card}>
-            <Text style={detailStyles.sectionTitle}>Scope of Work</Text>
+            <Text style={detailStyles.sectionTitle}>{t("estimates.scopeOfWork")}</Text>
             <Text style={detailStyles.scopeText}>{est.scopeOfWork}</Text>
           </View>
         )}
@@ -448,7 +448,7 @@ function EstimateDetailView({ detail, onClose }: { detail: EstimateDetail; onClo
         {/* Notes */}
         {est.notes && (
           <View style={detailStyles.card}>
-            <Text style={detailStyles.sectionTitle}>Notes</Text>
+            <Text style={detailStyles.sectionTitle}>{t("common.notes")}</Text>
             <Text style={detailStyles.scopeText}>{est.notes}</Text>
           </View>
         )}

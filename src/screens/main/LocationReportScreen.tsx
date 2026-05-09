@@ -9,7 +9,7 @@ export default function LocationReportScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <Ionicons name="navigate-outline" size={32} color="#3B82F6" />
-        <Text style={styles.title}>Location Report</Text>
+        <Text style={styles.title}>{t("reports.locationReport")}</Text>
       </View>
       <Text style={styles.subtitle}>This feature is available on the web version. Mobile implementation coming soon.</Text>
     </ScrollView>

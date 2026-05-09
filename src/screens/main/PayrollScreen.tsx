@@ -74,7 +74,7 @@ function getCurrentPayrollWeek(): { start: Date; end: Date } {
 
 /** Format date as "MMM DD" */
 function formatShortDate(date: Date): string {
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [t("months.jan"), t("months.feb"), t("months.mar"), t("months.apr"), t("months.may"), t("months.jun"), t("months.jul"), t("months.aug"), t("months.sep"), t("months.oct"), t("months.nov"), t("months.dec")];
   return `${months[date.getMonth()]} ${date.getDate()}`;
 }
 
@@ -127,7 +127,7 @@ function DateRangePicker({ startDate, endDate, onPrevWeek, onNextWeek, onCurrent
         </Text>
         {!isCurrentWeek && (
           <View style={styles.todayBadge}>
-            <Text style={styles.todayBadgeText}>Today</Text>
+            <Text style={styles.todayBadgeText}>{t("common.today")}</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -306,7 +306,7 @@ export default function PayrollScreen() {
         <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={fetchReport}>
-          <Text style={styles.retryText}>Retry</Text>
+          <Text style={styles.retryText}>{t("common.retry")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -338,11 +338,11 @@ export default function PayrollScreen() {
       {/* Summary Cards */}
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Total Pay</Text>
+          <Text style={styles.summaryLabel}>{t("payroll.totalPay")}</Text>
           <Text style={styles.summaryValue}>{formatCurrency(summary.totalPay)}</Text>
         </View>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Total Hours</Text>
+          <Text style={styles.summaryLabel}>{t("payroll.totalHours")}</Text>
           <Text style={styles.summaryValue}>{formatHours(summary.totalHours)}</Text>
         </View>
       </View>
@@ -350,15 +350,15 @@ export default function PayrollScreen() {
       {summary.totalOvertimeHours > 0 && (
         <View style={styles.summaryRow}>
           <View style={styles.summaryCardSmall}>
-            <Text style={styles.summaryLabelSmall}>Regular</Text>
+            <Text style={styles.summaryLabelSmall}>{t("payroll.regular")}</Text>
             <Text style={styles.summaryValueSmall}>{formatHours(summary.totalRegularHours)}</Text>
           </View>
           <View style={styles.summaryCardSmall}>
-            <Text style={styles.summaryLabelSmall}>Overtime</Text>
+            <Text style={styles.summaryLabelSmall}>{t("payroll.overtime")}</Text>
             <Text style={[styles.summaryValueSmall, { color: "#F59E0B" }]}>{formatHours(summary.totalOvertimeHours)}</Text>
           </View>
           <View style={styles.summaryCardSmall}>
-            <Text style={styles.summaryLabelSmall}>OT Pay</Text>
+            <Text style={styles.summaryLabelSmall}>{t("payroll.otPay")}</Text>
             <Text style={[styles.summaryValueSmall, { color: "#F59E0B" }]}>{formatCurrency(summary.totalOvertimePay)}</Text>
           </View>
         </View>
@@ -376,7 +376,7 @@ export default function PayrollScreen() {
       {sortedEmployees.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="people-outline" size={40} color="#5A6A80" />
-          <Text style={styles.emptyText}>No payroll entries for this period</Text>
+          <Text style={styles.emptyText}>{t("payroll.noEntries")}</Text>
         </View>
       ) : (
         sortedEmployees.map((emp) => (
@@ -390,7 +390,7 @@ export default function PayrollScreen() {
               <View style={styles.employeeInfo}>
                 <Text style={styles.employeeName} numberOfLines={1}>{emp.name}</Text>
                 <Text style={styles.employeeMeta}>
-                  {emp.payType === "hourly" ? t("employees.hourly") : emp.payType === "daily" ? "Daily" : emp.payType === "weekly" ? t("payroll.weekly") : emp.payType}
+                  {emp.payType === "hourly" ? t("employees.hourly") : emp.payType === "daily" ? t("payroll.daily") : emp.payType === "weekly" ? t("payroll.weekly") : emp.payType}
                   {" · "}{emp.daysWorked} day{emp.daysWorked !== 1 ? "s" : ""}
                 </Text>
               </View>
@@ -409,22 +409,22 @@ export default function PayrollScreen() {
             {expandedIds.has(emp.id) && (
               <View style={styles.employeeDetails}>
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Regular Hours</Text>
+                  <Text style={styles.detailLabel}>{t("payroll.regularHours")}</Text>
                   <Text style={styles.detailValue}>{formatHours(emp.regularHours)}</Text>
                 </View>
                 {emp.overtimeHours > 0 && (
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Overtime Hours</Text>
+                    <Text style={styles.detailLabel}>{t("payroll.overtimeHours")}</Text>
                     <Text style={[styles.detailValue, { color: "#F59E0B" }]}>{formatHours(emp.overtimeHours)}</Text>
                   </View>
                 )}
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Regular Pay</Text>
+                  <Text style={styles.detailLabel}>{t("payroll.regularPay")}</Text>
                   <Text style={styles.detailValue}>{formatCurrency(emp.regularPay)}</Text>
                 </View>
                 {emp.overtimePay > 0 && (
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Overtime Pay</Text>
+                    <Text style={styles.detailLabel}>{t("payroll.overtimePay")}</Text>
                     <Text style={[styles.detailValue, { color: "#F59E0B" }]}>{formatCurrency(emp.overtimePay)}</Text>
                   </View>
                 )}

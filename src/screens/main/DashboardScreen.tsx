@@ -95,11 +95,11 @@ export default function DashboardScreen() {
             entry.user?.name ||
             entry.userName ||
             entry.employeeName ||
-            "Worker",
+            t("common.worker"),
           projectName:
             entry.project?.name ||
             entry.projectName ||
-            "No project",
+            t("dashboard.noProject"),
           clockInTime:
             entry.clockIn ||
             entry.clockInTime ||
@@ -160,19 +160,19 @@ export default function DashboardScreen() {
 
   // Date display
   const today = new Date();
-  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const dayNames = [t("days.sunday"), t("days.monday"), t("days.tuesday"), t("days.wednesday"), t("days.thursday"), t("days.friday"), t("days.saturday")];
+  const monthNames = [t("months.january"), t("months.february"), t("months.march"), t("months.april"), t("months.may"), t("months.june"), t("months.july"), t("months.august"), t("months.september"), t("months.october"), t("months.november"), t("months.december")];
   const dateString = `${dayNames[today.getDay()]}, ${monthNames[today.getMonth()]} ${today.getDate()}`;
 
   // Payroll subtitle - show "Current Week" or period info
   const getPayrollSubtitle = (): string => {
     const label = kpis?.payrollPeriodLabel || "open";
-    if (label.startsWith("since:")) return "Open Payroll";
+    if (label.startsWith("since:")) return t("dashboard.openPayroll");
     if (label.startsWith("weeks:")) {
       const weeks = parseInt(label.split(":")[1]);
-      return weeks === 1 ? "Current Week" : `${weeks} weeks`;
+      return weeks === 1 ? t("dashboard.currentWeek") : `${weeks} weeks`;
     }
-    return "Current Week";
+    return t("dashboard.currentWeek");
   };
 
   // =========================================================================
@@ -183,7 +183,7 @@ export default function DashboardScreen() {
   const allStatCards = [
     {
       id: "active-workers",
-      label: "ACTIVE WORKERS",
+      label: t("dashboard.activeWorkers"),
       value: String(basicStats?.totalEmployees || kpis?.employees?.total || 0),
       subtitle: `${basicStats?.totalEmployees || kpis?.employees?.total || 0} total`,
       icon: "people" as const,
@@ -195,9 +195,9 @@ export default function DashboardScreen() {
     },
     {
       id: "clock-in",
-      label: "CLOCK IN",
+      label: t("dashboard.clockIn"),
       value: String(basicStats?.clockedInNow || 0),
-      subtitle: "workers active",
+      subtitle: t("dashboard.workersActive"),
       icon: "pulse" as const,
       color: "#10B981",
       gradientStart: "#0D3B2F",
@@ -207,7 +207,7 @@ export default function DashboardScreen() {
     },
     {
       id: "payroll",
-      label: "PAYROLL",
+      label: t("dashboard.payroll"),
       value: formatCurrency(kpis?.payrollThisMonth || 0),
       subtitle: getPayrollSubtitle(),
       icon: "cash" as const,
@@ -219,7 +219,7 @@ export default function DashboardScreen() {
     },
     {
       id: "active-projects",
-      label: "ACTIVE PROJECTS",
+      label: t("dashboard.activeProjects"),
       value: String(kpis?.projects?.active || basicStats?.activeProjects || 0),
       subtitle: formatCurrency(kpis?.projects?.activeBudget || 0),
       icon: "folder-open" as const,
@@ -231,7 +231,7 @@ export default function DashboardScreen() {
     },
     {
       id: "today-schedule",
-      label: "TODAY'S SCHEDULE",
+      label: t("dashboard.todaysSchedule"),
       value: String(todayScheduleCount),
       subtitle: `job${todayScheduleCount !== 1 ? "s" : ""} today`,
       icon: "calendar" as const,
@@ -252,7 +252,7 @@ export default function DashboardScreen() {
 
   // Define all quick actions with permissions
   const allQuickActions = [
-    { label: "Clock In", icon: "time-outline" as const, screen: "TimeTracking", color: "#10B981", requiredPermission: ["time.clock_in_self"] },
+    { label: t("dashboard.clockInAction"), icon: "time-outline" as const, screen: "TimeTracking", color: "#10B981", requiredPermission: ["time.clock_in_self"] },
     { label: labels.projects, icon: "folder-outline" as const, screen: "Projects", color: "#3B82F6", requiredPermission: ["projects.view_all", "projects.view_assigned"] },
     { label: labels.liveMap, icon: "map-outline" as const, screen: "LiveMap", color: "#8B5CF6", requiredPermission: ["location.view_live_map"] },
     { label: labels.estimates, icon: "calculator-outline" as const, screen: "Estimates", color: "#F59E0B", requiredPermission: ["estimates.view_list"] },
@@ -273,7 +273,7 @@ export default function DashboardScreen() {
   const employeeCards = [
     {
       id: "my-hours",
-      label: "MY HOURS",
+      label: t("dashboard.myHoursCard"),
       value: "—",
       subtitle: t("dashboard.thisWeek"),
       icon: "time" as const,
@@ -284,7 +284,7 @@ export default function DashboardScreen() {
     },
     {
       id: "clock-in-self",
-      label: "CLOCK IN",
+      label: t("dashboard.clockIn"),
       value: "—",
       subtitle: t("dashboard.tapToClockIn"),
       icon: "pulse" as const,
@@ -299,7 +299,7 @@ export default function DashboardScreen() {
   const showProjectStatus = isOwner || hasAny("projects.view_all");
   const projectStatus = [
     { label: labels.active, value: kpis?.projects?.active || basicStats?.activeProjects || 0, color: "#10B981" },
-    { label: "Billing", value: kpis?.projects?.readyForBilling || 0, color: "#F59E0B" },
+    { label: t("dashboard.billing"), value: kpis?.projects?.readyForBilling || 0, color: "#F59E0B" },
     { label: labels.completed, value: kpis?.projects?.completed || 0, color: "#3B82F6" },
   ];
 

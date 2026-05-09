@@ -155,7 +155,7 @@ export default function FieldMediaScreen() {
       }
 
       if (successCount > 0) {
-        Alert.alert("Success", `${successCount} file(s) uploaded successfully`);
+        Alert.alert(t("common.success"), `${successCount} file(s) uploaded successfully`);
         fetchMedia();
       } else {
         Alert.alert(t("common.error"), "All uploads failed. Please try again.");
@@ -172,7 +172,7 @@ export default function FieldMediaScreen() {
   const handleTakePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission Required", "Camera access is needed to take photos.");
+      Alert.alert(t("fieldMedia.permissionRequired"), "Camera access is needed to take photos.");
       return;
     }
 
@@ -208,7 +208,7 @@ export default function FieldMediaScreen() {
       // Check file size (16MB limit)
       const fileInfo = await FileSystem.getInfoAsync(asset.uri);
       if (fileInfo.exists && fileInfo.size && fileInfo.size > 16 * 1024 * 1024) {
-        Alert.alert("File Too Large", "Video must be under 16MB. Try recording a shorter clip.");
+        Alert.alert(t("fieldMedia.fileTooLarge"), "Video must be under 16MB. Try recording a shorter clip.");
         return;
       }
       const fileName = asset.fileName || `video_${Date.now()}.mp4`;
@@ -277,8 +277,8 @@ export default function FieldMediaScreen() {
 
   // Delete media
   const handleDelete = (item: MediaItem) => {
-    Alert.alert("Delete", `Delete "${item.caption || item.fileName}"?`, [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(t("common.delete"), `Delete "${item.caption || item.fileName}"?`, [
+      { text: t("common.cancel"), style: "cancel" },
       {
         text: t("common.delete"),
         style: "destructive",
@@ -400,7 +400,7 @@ export default function FieldMediaScreen() {
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Ionicons name="camera-outline" size={48} color="#5A6A80" />
-              <Text style={styles.emptyTitle}>No Media Yet</Text>
+              <Text style={styles.emptyTitle}>{t("fieldMedia.noMediaYet")}</Text>
               <Text style={styles.emptySubtitle}>
                 Take a photo, record a video, or upload from your gallery
               </Text>

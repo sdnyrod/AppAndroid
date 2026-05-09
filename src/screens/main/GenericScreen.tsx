@@ -86,7 +86,7 @@ export default function GenericScreen({
         <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={fetchData}>
-          <Text style={styles.retryText}>Retry</Text>
+          <Text style={styles.retryText}>{t("common.retry")}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -98,7 +98,7 @@ export default function GenericScreen({
         <Ionicons name={icon as any} size={48} color="#5A6A80" />
         <Text style={styles.emptyText}>{emptyMessage}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={fetchData}>
-          <Text style={styles.retryText}>Refresh</Text>
+          <Text style={styles.retryText}>{t("common.refresh")}</Text>
         </TouchableOpacity>
       </View>
     );

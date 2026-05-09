@@ -9,7 +9,7 @@ export default function ReportsScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <Ionicons name="bar-chart-outline" size={32} color="#3B82F6" />
-        <Text style={styles.title}>Reports</Text>
+        <Text style={styles.title}>{t("reports.title")}</Text>
       </View>
       <Text style={styles.subtitle}>This feature is available on the web version. Mobile implementation coming soon.</Text>
     </ScrollView>

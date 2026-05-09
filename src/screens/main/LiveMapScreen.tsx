@@ -178,7 +178,7 @@ export default function LiveMapScreen() {
     latitudeDelta: number;
     longitudeDelta: number;
   } | null>(null);
-  const [lastUpdate, setLastUpdate] = useState<string>("Just now");
+  const [lastUpdate, setLastUpdate] = useState<string>(t("common.justNow"));
   const mapRef = useRef<MapView>(null);
 
   const fetchData = useCallback(async () => {
@@ -368,27 +368,27 @@ export default function LiveMapScreen() {
       <View style={styles.legend}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: "#10B981" }]} />
-          <Text style={styles.legendText}>In geofence</Text>
+          <Text style={styles.legendText}>{t("liveMap.inGeofence")}</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: "#EF4444" }]} />
-          <Text style={styles.legendText}>Outside</Text>
+          <Text style={styles.legendText}>{t("liveMap.outside")}</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: "#3B82F6" }]} />
-          <Text style={styles.legendText}>No fence</Text>
+          <Text style={styles.legendText}>{t("liveMap.noFence")}</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendIconWrap, { backgroundColor: "#065F46", borderColor: "#10B981" }]}>
             <Ionicons name="business" size={8} color="#FFFFFF" />
           </View>
-          <Text style={styles.legendText}>Active</Text>
+          <Text style={styles.legendText}>{t("common.active")}</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendIconWrap, { backgroundColor: "#1E293B", borderColor: "#334155" }]}>
             <Ionicons name="business" size={8} color="#94A3B8" />
           </View>
-          <Text style={styles.legendText}>Empty</Text>
+          <Text style={styles.legendText}>{t("liveMap.empty")}</Text>
         </View>
       </View>
     </View>
