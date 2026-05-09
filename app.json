@@ -2,7 +2,7 @@
   "expo": {
     "name": "CREW",
     "slug": "crew-app",
-    "version": "1.0.3",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -21,7 +21,7 @@
         "backgroundColor": "#0A1628"
       },
       "package": "com.crewcwm.app",
-      "versionCode": 4,
+      "versionCode": 5,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
@@ -53,7 +53,7 @@
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": ["remote-notification"]
       },
-      "buildNumber": "4"
+      "buildNumber": "5"
     },
     "plugins": [
       "expo-secure-store",
