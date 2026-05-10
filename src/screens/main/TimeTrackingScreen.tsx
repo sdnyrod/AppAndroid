@@ -7,6 +7,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { apiClient } from "@/services/api";
+import { startBackgroundTracking, stopBackgroundTracking } from "@/services/backgroundLocation";
 import SearchableSelect from "@/components/SearchableSelect";
 
 import { useLanguageStore } from "@/store/languageStore";
@@ -191,6 +192,23 @@ export default function TimeTrackingScreen() {
         longitude: loc.lng,
       });
       if (result.ok) {
+        // Start background geofence monitoring
+        try {
+          const projectData = await apiClient.get<any>("time.getGeofenceConfig", { projectId: selectedProject });
+          if (projectData && projectData.hasGeofence) {
+            await startBackgroundTracking({
+              projectId: selectedProject,
+              projectName: selectedProjectName || "Project",
+              centerLat: projectData.latitude,
+              centerLng: projectData.longitude,
+              radiusMeters: projectData.radiusMeters,
+              employeeId: projectData.employeeId,
+              employeeName: projectData.employeeName,
+            });
+          }
+        } catch (bgErr) {
+          console.log("[Clock] Background tracking setup failed (non-blocking):", bgErr);
+        }
         await fetchData();
       } else {
         Alert.alert(t("common.error"), result.error || t("time.failedClockIn"));
@@ -206,7 +224,11 @@ export default function TimeTrackingScreen() {
     if (!loc) { setClockingOut(false); return; }
     try {
       const result = await apiClient.post("time.clockOut", { latitude: loc.lat, longitude: loc.lng });
-      if (result.ok) { setActiveEntry(null); await fetchData(); }
+      if (result.ok) {
+        // Stop background geofence monitoring
+        try { await stopBackgroundTracking(); } catch (e) { console.log("[Clock] Stop tracking error:", e); }
+        setActiveEntry(null); await fetchData();
+      }
       else { Alert.alert(t("common.error"), result.error || t("time.failedClockOut")); }
     } catch (e: any) {
       Alert.alert(t("common.error"), e?.message || t("time.failedClockOut"));

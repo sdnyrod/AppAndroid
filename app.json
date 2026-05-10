@@ -2,7 +2,7 @@
   "expo": {
     "name": "CREW",
     "slug": "crew-app",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -21,11 +21,13 @@
         "backgroundColor": "#0A1628"
       },
       "package": "com.crewcwm.app",
-      "versionCode": 5,
+      "versionCode": 6,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
@@ -50,20 +52,27 @@
         "NSCameraUsageDescription": "CREW needs camera access to take photos and videos of job sites.",
         "NSPhotoLibraryUsageDescription": "CREW needs photo library access to upload existing photos and videos to projects.",
         "NSMicrophoneUsageDescription": "CREW needs microphone access to record videos with audio.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "CREW monitors your location while you are clocked in to ensure you remain at the job site. You will receive an alert if you leave the designated work area.",
+        "NSLocationAlwaysUsageDescription": "CREW needs background location access to monitor job site attendance while you are clocked in.",
+        "NSLocationWhenInUseUsageDescription": "CREW needs your location to verify you are at the job site when clocking in and out.",
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": ["remote-notification", "location"]
       },
       "entitlements": {
         "aps-environment": "production"
       },
-      "buildNumber": "5"
+      "buildNumber": "6"
     },
     "plugins": [
       "expo-secure-store",
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "CREW needs your location to track work hours and job site attendance."
+          "locationAlwaysAndWhenInUsePermission": "CREW monitors your location while you are clocked in to ensure you remain at the job site. You will receive an alert if you leave the designated work area.",
+          "locationAlwaysPermission": "CREW needs background location access to monitor job site attendance while you are clocked in.",
+          "locationWhenInUsePermission": "CREW needs your location to verify you are at the job site when clocking in and out.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       [
@@ -89,6 +98,7 @@
           "faceIDPermission": "CREW uses Face ID for quick and secure login."
         }
       ],
+      "expo-task-manager",
       "./plugins/withAdiRegistration",
       [
         "expo-build-properties",
