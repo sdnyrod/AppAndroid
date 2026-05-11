@@ -20,7 +20,6 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import * as ImageManipulator from "expo-image-manipulator";
-import DocumentScanner from "react-native-document-scanner-plugin";
 import { apiClient } from "@/services/api";
 import SearchableSelect from "@/components/SearchableSelect";
 
@@ -155,33 +154,20 @@ export default function ExpensesScreen() {
       return;
     }
 
-    try {
-      // Use Document Scanner with automatic edge detection and perspective correction
-      const { scannedImages } = await DocumentScanner.scanDocument({
-        maxNumDocuments: 1,
-        croppedImageQuality: 90,
-      });
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(t("expenses.permissionRequired"), "Camera access is needed to scan receipts.");
+      return;
+    }
 
-      if (scannedImages && scannedImages.length > 0) {
-        await processReceiptImage(scannedImages[0]);
-      }
-    } catch (err: any) {
-      // Fallback to ImagePicker if DocumentScanner fails (e.g., user cancelled)
-      if (err?.message?.includes("cancel")) return;
-      // Try ImagePicker as fallback
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(t("expenses.permissionRequired"), "Camera access is needed to scan receipts.");
-        return;
-      }
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ["images"],
-        quality: 0.9,
-        allowsEditing: true,
-      });
-      if (!result.canceled && result.assets.length > 0) {
-        await processReceiptImage(result.assets[0].uri);
-      }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      quality: 0.9,
+      allowsEditing: true,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      await processReceiptImage(result.assets[0].uri);
     }
   };
 
