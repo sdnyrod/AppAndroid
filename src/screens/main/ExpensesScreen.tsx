@@ -20,7 +20,6 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import * as ImageManipulator from "expo-image-manipulator";
-import DocumentScanner from "react-native-document-scanner-plugin";
 import { apiClient } from "@/services/api";
 import SearchableSelect from "@/components/SearchableSelect";
 
@@ -156,7 +155,8 @@ export default function ExpensesScreen() {
     }
 
     try {
-      // Use Document Scanner with automatic edge detection and perspective correction
+      // Lazy-load DocumentScanner to prevent crash if native module isn't available
+      const DocumentScanner = require("react-native-document-scanner-plugin").default;
       const response = await DocumentScanner.scanDocument({
         maxNumDocuments: 1,
         croppedImageQuality: 90,
