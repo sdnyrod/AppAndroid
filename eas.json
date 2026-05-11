@@ -8,7 +8,8 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
@@ -17,7 +18,8 @@
       },
       "ios": {
         "simulator": true
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "android": {
@@ -25,7 +27,8 @@
       },
       "ios": {
         "image": "macos-sequoia-15.6-xcode-26.2"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {
