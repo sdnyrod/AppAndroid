@@ -20,6 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import * as ImageManipulator from "expo-image-manipulator";
+import DocumentScanner from "react-native-document-scanner-plugin";
 import { apiClient } from "@/services/api";
 import SearchableSelect from "@/components/SearchableSelect";
 
@@ -154,6 +155,26 @@ export default function ExpensesScreen() {
       return;
     }
 
+    try {
+      // Use Document Scanner with automatic edge detection and perspective correction
+      const response = await DocumentScanner.scanDocument({
+        maxNumDocuments: 1,
+        croppedImageQuality: 90,
+      });
+
+      if (response.scannedImages && response.scannedImages.length > 0) {
+        await processReceiptImage(response.scannedImages[0]);
+        return;
+      }
+
+      // User cancelled the scan
+      if (response.status === "cancel") return;
+    } catch (err: any) {
+      console.log("[DocumentScanner] Error:", err?.message);
+      // If DocumentScanner fails for any reason, fall back to ImagePicker
+    }
+
+    // Fallback: use ImagePicker if DocumentScanner is unavailable
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
       Alert.alert(t("expenses.permissionRequired"), "Camera access is needed to scan receipts.");
