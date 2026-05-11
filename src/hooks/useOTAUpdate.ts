@@ -1,20 +1,34 @@
 import { useEffect, useState, useCallback } from "react";
-import * as Updates from "expo-updates";
-import { Alert, AppState, AppStateStatus } from "react-native";
+import { Alert, AppState, AppStateStatus, Platform } from "react-native";
+
+let Updates: any = null;
+try {
+  Updates = require("expo-updates");
+} catch (e) {
+  // expo-updates not available in this build
+}
 
 /**
  * Hook that checks for OTA updates via EAS Update.
  * - Checks on app launch
  * - Checks when app comes back to foreground
  * - Automatically downloads and applies updates
+ * 
+ * Guards:
+ * - Skips in __DEV__ mode
+ * - Skips if expo-updates module is not available
+ * - Skips if Updates is not enabled in this build
  */
 export function useOTAUpdate() {
   const [isChecking, setIsChecking] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
   const checkForUpdate = useCallback(async () => {
-    // Skip in development mode (expo-updates is not available in dev)
+    // Skip in development mode
     if (__DEV__) return;
+
+    // Skip if expo-updates is not available or not enabled
+    if (!Updates || !Updates.isEnabled) return;
 
     try {
       setIsChecking(true);
@@ -25,7 +39,6 @@ export function useOTAUpdate() {
         const result = await Updates.fetchUpdateAsync();
 
         if (result.isNew) {
-          // Apply update immediately - restart the app
           Alert.alert(
             "Update Available",
             "A new version has been downloaded. The app will restart to apply the update.",
@@ -51,8 +64,10 @@ export function useOTAUpdate() {
   }, []);
 
   useEffect(() => {
-    // Check on mount (app launch)
-    checkForUpdate();
+    // Delay the first check to let the app fully initialize
+    const timer = setTimeout(() => {
+      checkForUpdate();
+    }, 3000);
 
     // Check when app comes back to foreground
     const subscription = AppState.addEventListener(
@@ -65,6 +80,7 @@ export function useOTAUpdate() {
     );
 
     return () => {
+      clearTimeout(timer);
       subscription.remove();
     };
   }, [checkForUpdate]);

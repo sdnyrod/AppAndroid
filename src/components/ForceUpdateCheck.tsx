@@ -11,7 +11,6 @@ import {
   AppStateStatus,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { apiClient } from "@/services/api";
 import { APP_VERSION } from "@/constants/config";
 
 interface VersionCheckResult {
@@ -34,6 +33,8 @@ export default function ForceUpdateCheck({ children }: { children: React.ReactNo
 
   const checkVersion = useCallback(async () => {
     try {
+      // Lazy import apiClient to avoid circular dependency issues at startup
+      const { apiClient } = require("@/services/api");
       const platform = Platform.OS === "ios" ? "ios" : "android";
       const result = await apiClient.get<VersionCheckResult>("mobile.checkVersion", {
         platform,
@@ -50,8 +51,10 @@ export default function ForceUpdateCheck({ children }: { children: React.ReactNo
   }, []);
 
   useEffect(() => {
-    // Check on mount
-    checkVersion();
+    // Delay check to let the app fully initialize first
+    const timer = setTimeout(() => {
+      checkVersion();
+    }, 5000);
 
     // Re-check when app comes back to foreground
     const subscription = AppState.addEventListener(
@@ -63,7 +66,10 @@ export default function ForceUpdateCheck({ children }: { children: React.ReactNo
       }
     );
 
-    return () => subscription.remove();
+    return () => {
+      clearTimeout(timer);
+      subscription.remove();
+    };
   }, [checkVersion]);
 
   const handleUpdate = () => {
@@ -149,7 +155,6 @@ export default function ForceUpdateCheck({ children }: { children: React.ReactNo
 }
 
 const styles = StyleSheet.create({
-  // Force update overlay
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.85)",
@@ -211,8 +216,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-
-  // Optional update bottom sheet
   bottomOverlay: {
     flex: 1,
     justifyContent: "flex-end",
