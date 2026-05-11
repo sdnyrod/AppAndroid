@@ -2,17 +2,17 @@ import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
   ActivityIndicator, TouchableOpacity, Alert, Dimensions,
-  TextInput, Modal, KeyboardAvoidingView, Platform, FlatList,
+  Modal, Platform, KeyboardAvoidingView, TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { apiClient } from "@/services/api";
 import { startBackgroundTracking, stopBackgroundTracking } from "@/services/backgroundLocation";
 import SearchableSelect from "@/components/SearchableSelect";
-
 import { useLanguageStore } from "@/store/languageStore";
+
 const { width, height } = Dimensions.get("window");
-const CHIP_WIDTH = (width - 48 - 8) / 2;
 
 // =============================================================================
 // TYPES
@@ -31,6 +31,7 @@ interface ActiveEntry {
   projectName: string;
   clockIn: string;
   userName?: string;
+  userId?: number;
 }
 
 interface CrewMember {
@@ -40,6 +41,14 @@ interface CrewMember {
   projectName: string;
   clockIn: string;
   elapsed: string;
+  entryId?: number;
+}
+
+interface Employee {
+  id: number;
+  name: string;
+  role?: string;
+  department?: string;
 }
 
 // =============================================================================
@@ -62,6 +71,14 @@ function getElapsedTime(clockInISO: string): string {
   }
 }
 
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDate(date: Date): string {
+  return date.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+}
+
 // =============================================================================
 // COMPONENT
 // =============================================================================
@@ -69,6 +86,7 @@ function getElapsedTime(clockInISO: string): string {
 export default function TimeTrackingScreen() {
   const { t } = useLanguageStore();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
   const [selectedProjectName, setSelectedProjectName] = useState<string>("");
   const [activeEntry, setActiveEntry] = useState<ActiveEntry | null>(null);
@@ -79,14 +97,31 @@ export default function TimeTrackingScreen() {
   const [clockingOut, setClockingOut] = useState(false);
   const [clockingOutMemberId, setClockingOutMemberId] = useState<number | null>(null);
 
+  // Supervisor Clock-In Modal
+  const [showClockInModal, setShowClockInModal] = useState(false);
+  const [clockInEmployee, setClockInEmployee] = useState<number | null>(null);
+  const [clockInProject, setClockInProject] = useState<number | null>(null);
+  const [clockInSubmitting, setClockInSubmitting] = useState(false);
 
+  // Manual Entry Modal
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [manualEmployee, setManualEmployee] = useState<number | null>(null);
+  const [manualProject, setManualProject] = useState<number | null>(null);
+  const [manualClockIn, setManualClockIn] = useState(new Date());
+  const [manualClockOut, setManualClockOut] = useState(new Date());
+  const [manualReason, setManualReason] = useState("");
+  const [manualNotes, setManualNotes] = useState("");
+  const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [showManualClockInPicker, setShowManualClockInPicker] = useState(false);
+  const [showManualClockOutPicker, setShowManualClockOutPicker] = useState(false);
+  const [showManualDatePicker, setShowManualDatePicker] = useState(false);
+  const [manualDate, setManualDate] = useState(new Date());
 
   // =========================================================================
   // DATA FETCHING
   // =========================================================================
 
   const fetchProjects = useCallback(async (): Promise<Project[]> => {
-    // Try getActive first; if it returns null/empty, fall back to list
     const active = await apiClient.get<Project[]>("projects.getActive");
     if (active && active.length > 0) {
       return active.filter((p) => p.status === "active" || !p.status);
@@ -96,6 +131,23 @@ export default function TimeTrackingScreen() {
       return all.filter((p) => p.status === "active" || !p.status);
     }
     return [];
+  }, []);
+
+  const fetchEmployees = useCallback(async () => {
+    try {
+      const data = await apiClient.get<Employee[]>("users.list");
+      if (data && Array.isArray(data)) {
+        setEmployees(data.filter((e: any) => e.status !== "inactive" && e.status !== "terminated"));
+      }
+    } catch {
+      // Fallback: try getEmployees
+      try {
+        const data = await apiClient.get<Employee[]>("users.getEmployees");
+        if (data && Array.isArray(data)) {
+          setEmployees(data);
+        }
+      } catch { /* silent */ }
+    }
   }, []);
 
   const fetchData = useCallback(async () => {
@@ -134,6 +186,7 @@ export default function TimeTrackingScreen() {
             projectName: project.name || e.projectName || "",
             clockIn,
             elapsed: getElapsedTime(clockIn),
+            entryId: entry.id,
           };
         });
         setCrewWorking(working);
@@ -146,15 +199,19 @@ export default function TimeTrackingScreen() {
     }
   }, [fetchProjects]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+    fetchEmployees();
+  }, [fetchData, fetchEmployees]);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchData();
+    fetchEmployees();
   };
 
   // =========================================================================
-  // ACTIONS
+  // ACTIONS — Self Clock In/Out
   // =========================================================================
 
   const getLocation = async () => {
@@ -192,7 +249,6 @@ export default function TimeTrackingScreen() {
         longitude: loc.lng,
       });
       if (result.ok) {
-        // Start background geofence monitoring
         try {
           const projectData = await apiClient.get<any>("time.getGeofenceConfig", { projectId: selectedProject });
           if (projectData && projectData.hasGeofence) {
@@ -225,7 +281,6 @@ export default function TimeTrackingScreen() {
     try {
       const result = await apiClient.post("time.clockOut", { latitude: loc.lat, longitude: loc.lng });
       if (result.ok) {
-        // Stop background geofence monitoring
         try { await stopBackgroundTracking(); } catch (e) { console.log("[Clock] Stop tracking error:", e); }
         setActiveEntry(null); await fetchData();
       }
@@ -269,9 +324,107 @@ export default function TimeTrackingScreen() {
     );
   };
 
-  const selectProject = (project: Project) => {
-    setSelectedProject(project.id);
-    setSelectedProjectName(project.name);
+  // =========================================================================
+  // ACTIONS — Supervisor Clock-In
+  // =========================================================================
+
+  const openClockInModal = () => {
+    setClockInEmployee(null);
+    setClockInProject(null);
+    setShowClockInModal(true);
+  };
+
+  const handleSupervisorClockIn = async () => {
+    if (!clockInEmployee || !clockInProject) {
+      Alert.alert(t("common.error"), "Please select an employee and a project.");
+      return;
+    }
+    setClockInSubmitting(true);
+    const loc = await getLocation();
+    try {
+      const result = await apiClient.post("time.supervisorClockIn", {
+        employeeId: clockInEmployee,
+        projectId: clockInProject,
+        latitude: loc?.lat,
+        longitude: loc?.lng,
+      });
+      if (result.ok || result.id) {
+        setShowClockInModal(false);
+        Alert.alert(t("common.success"), "Employee clocked in successfully.");
+        await fetchData();
+      } else {
+        Alert.alert(t("common.error"), result.error || "Failed to clock in employee.");
+      }
+    } catch (e: any) {
+      Alert.alert(t("common.error"), e?.message || "Failed to clock in employee.");
+    } finally {
+      setClockInSubmitting(false);
+    }
+  };
+
+  // =========================================================================
+  // ACTIONS — Manual Entry
+  // =========================================================================
+
+  const openManualModal = () => {
+    setManualEmployee(null);
+    setManualProject(null);
+    const now = new Date();
+    const start = new Date(now);
+    start.setHours(7, 0, 0, 0);
+    const end = new Date(now);
+    end.setHours(15, 30, 0, 0);
+    setManualDate(now);
+    setManualClockIn(start);
+    setManualClockOut(end);
+    setManualReason("");
+    setManualNotes("");
+    setShowManualModal(true);
+  };
+
+  const handleManualEntry = async () => {
+    if (!manualEmployee || !manualProject) {
+      Alert.alert(t("common.error"), "Please select an employee and a project.");
+      return;
+    }
+    if (!manualReason.trim()) {
+      Alert.alert(t("common.error"), "A reason is required for manual entries.");
+      return;
+    }
+    setManualSubmitting(true);
+    try {
+      // Combine date + time
+      const clockIn = new Date(manualDate);
+      clockIn.setHours(manualClockIn.getHours(), manualClockIn.getMinutes(), 0, 0);
+      const clockOut = new Date(manualDate);
+      clockOut.setHours(manualClockOut.getHours(), manualClockOut.getMinutes(), 0, 0);
+
+      if (clockOut <= clockIn) {
+        Alert.alert(t("common.error"), "Clock-out must be after clock-in.");
+        setManualSubmitting(false);
+        return;
+      }
+
+      const result = await apiClient.post("time.createManualEntry", {
+        employeeId: manualEmployee,
+        projectId: manualProject,
+        clockIn: clockIn.toISOString(),
+        clockOut: clockOut.toISOString(),
+        reason: manualReason.trim(),
+        notes: manualNotes.trim() || undefined,
+      });
+      if (result.ok || result.id) {
+        setShowManualModal(false);
+        Alert.alert(t("common.success"), "Manual entry created successfully.");
+        await fetchData();
+      } else {
+        Alert.alert(t("common.error"), result.error || "Failed to create manual entry.");
+      }
+    } catch (e: any) {
+      Alert.alert(t("common.error"), e?.message || "Failed to create manual entry.");
+    } finally {
+      setManualSubmitting(false);
+    }
   };
 
   // =========================================================================
@@ -279,6 +432,11 @@ export default function TimeTrackingScreen() {
   // =========================================================================
 
   const isClockedIn = !!activeEntry;
+
+  const activeProjects = useMemo(() =>
+    projects.filter((p) => p.status === "active" || !p.status),
+    [projects]
+  );
 
   // =========================================================================
   // RENDER
@@ -291,7 +449,6 @@ export default function TimeTrackingScreen() {
       </View>
     );
   }
-
 
   return (
     <View style={styles.container}>
@@ -327,7 +484,6 @@ export default function TimeTrackingScreen() {
             </View>
             <Text style={styles.selectLabel}>{t("time.selectProjectTap")}</Text>
 
-            {/* Project Search Selector */}
             <SearchableSelect
               items={projects.map((p) => ({ id: p.id, name: p.name, subtitle: p.clientName }))}
               selectedId={selectedProject}
@@ -379,6 +535,26 @@ export default function TimeTrackingScreen() {
         </View>
 
         {/* ================================================================ */}
+        {/* SUPERVISOR ACTIONS */}
+        {/* ================================================================ */}
+        <View style={styles.supervisorSection}>
+          <View style={styles.supervisorHeader}>
+            <Ionicons name="shield-checkmark" size={16} color="#3B82F6" />
+            <Text style={styles.supervisorTitle}>Supervisor Actions</Text>
+          </View>
+          <View style={styles.supervisorButtons}>
+            <TouchableOpacity style={styles.supervisorBtn} onPress={openClockInModal} activeOpacity={0.7}>
+              <Ionicons name="person-add" size={16} color="#10B981" />
+              <Text style={styles.supervisorBtnText}>Clock In Employee</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.supervisorBtn} onPress={openManualModal} activeOpacity={0.7}>
+              <Ionicons name="create" size={16} color="#F59E0B" />
+              <Text style={styles.supervisorBtnText}>Manual Entry</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ================================================================ */}
         {/* CREW MANAGEMENT */}
         {/* ================================================================ */}
         <View style={styles.crewSection}>
@@ -394,7 +570,7 @@ export default function TimeTrackingScreen() {
                 <Text style={styles.crewSubtitleGreen}>WORKING NOW ({crewWorking.length})</Text>
               </View>
               {crewWorking.map((member) => (
-                <View key={member.id} style={styles.crewCard}>
+                <View key={`${member.id}-${member.entryId}`} style={styles.crewCard}>
                   <View style={[styles.crewAvatar, styles.crewAvatarActive]}>
                     <Text style={styles.crewInitial}>{(member.name || "W").charAt(0).toUpperCase()}</Text>
                   </View>
@@ -430,7 +606,209 @@ export default function TimeTrackingScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
+      {/* ================================================================ */}
+      {/* SUPERVISOR CLOCK-IN MODAL */}
+      {/* ================================================================ */}
+      <Modal visible={showClockInModal} transparent animationType="slide" onRequestClose={() => setShowClockInModal(false)}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Clock In Employee</Text>
+              <TouchableOpacity onPress={() => setShowClockInModal(false)}>
+                <Ionicons name="close" size={24} color="#8892A4" />
+              </TouchableOpacity>
+            </View>
 
+            <ScrollView style={styles.modalBody}>
+              <Text style={styles.fieldLabel}>Employee</Text>
+              <SearchableSelect
+                items={employees.map((e) => ({ id: e.id, name: e.name, subtitle: e.role || e.department }))}
+                selectedId={clockInEmployee}
+                onSelect={(item) => setClockInEmployee(item.id)}
+                placeholder="Search employee..."
+                icon="person-outline"
+                iconColor="#10B981"
+              />
+
+              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Project</Text>
+              <SearchableSelect
+                items={activeProjects.map((p) => ({ id: p.id, name: p.name, subtitle: p.clientName }))}
+                selectedId={clockInProject}
+                onSelect={(item) => setClockInProject(item.id)}
+                placeholder="Search project..."
+                icon="business-outline"
+                iconColor="#5EEAD4"
+              />
+
+              <TouchableOpacity
+                style={[styles.submitBtn, (!clockInEmployee || !clockInProject) && styles.submitBtnDisabled]}
+                onPress={handleSupervisorClockIn}
+                disabled={clockInSubmitting || !clockInEmployee || !clockInProject}
+                activeOpacity={0.7}
+              >
+                {clockInSubmitting ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="play-circle" size={18} color="#FFFFFF" />
+                    <Text style={styles.submitBtnText}>Clock In</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ================================================================ */}
+      {/* MANUAL ENTRY MODAL */}
+      {/* ================================================================ */}
+      <Modal visible={showManualModal} transparent animationType="slide" onRequestClose={() => setShowManualModal(false)}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={[styles.modalContainer, { maxHeight: height * 0.85 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Manual Time Entry</Text>
+              <TouchableOpacity onPress={() => setShowManualModal(false)}>
+                <Ionicons name="close" size={24} color="#8892A4" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              <Text style={styles.fieldLabel}>Employee</Text>
+              <SearchableSelect
+                items={employees.map((e) => ({ id: e.id, name: e.name, subtitle: e.role || e.department }))}
+                selectedId={manualEmployee}
+                onSelect={(item) => setManualEmployee(item.id)}
+                placeholder="Search employee..."
+                icon="person-outline"
+                iconColor="#10B981"
+              />
+
+              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Project</Text>
+              <SearchableSelect
+                items={activeProjects.map((p) => ({ id: p.id, name: p.name, subtitle: p.clientName }))}
+                selectedId={manualProject}
+                onSelect={(item) => setManualProject(item.id)}
+                placeholder="Search project..."
+                icon="business-outline"
+                iconColor="#5EEAD4"
+              />
+
+              {/* Date */}
+              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Date</Text>
+              <TouchableOpacity style={styles.dateBtn} onPress={() => setShowManualDatePicker(true)}>
+                <Ionicons name="calendar-outline" size={16} color="#8892A4" />
+                <Text style={styles.dateBtnText}>{formatDate(manualDate)}</Text>
+              </TouchableOpacity>
+              {showManualDatePicker && (
+                <DateTimePicker
+                  value={manualDate}
+                  mode="date"
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  maximumDate={new Date()}
+                  onChange={(_, date) => {
+                    setShowManualDatePicker(Platform.OS === "ios");
+                    if (date) setManualDate(date);
+                  }}
+                  themeVariant="dark"
+                />
+              )}
+
+              {/* Clock In Time */}
+              <View style={styles.timeRow}>
+                <View style={styles.timeCol}>
+                  <Text style={styles.fieldLabel}>Clock In</Text>
+                  <TouchableOpacity style={styles.dateBtn} onPress={() => setShowManualClockInPicker(true)}>
+                    <Ionicons name="time-outline" size={16} color="#10B981" />
+                    <Text style={styles.dateBtnText}>{formatTime(manualClockIn)}</Text>
+                  </TouchableOpacity>
+                  {showManualClockInPicker && (
+                    <DateTimePicker
+                      value={manualClockIn}
+                      mode="time"
+                      display={Platform.OS === "ios" ? "spinner" : "default"}
+                      onChange={(_, date) => {
+                        setShowManualClockInPicker(Platform.OS === "ios");
+                        if (date) setManualClockIn(date);
+                      }}
+                      themeVariant="dark"
+                    />
+                  )}
+                </View>
+                <View style={styles.timeCol}>
+                  <Text style={styles.fieldLabel}>Clock Out</Text>
+                  <TouchableOpacity style={styles.dateBtn} onPress={() => setShowManualClockOutPicker(true)}>
+                    <Ionicons name="time-outline" size={16} color="#EF4444" />
+                    <Text style={styles.dateBtnText}>{formatTime(manualClockOut)}</Text>
+                  </TouchableOpacity>
+                  {showManualClockOutPicker && (
+                    <DateTimePicker
+                      value={manualClockOut}
+                      mode="time"
+                      display={Platform.OS === "ios" ? "spinner" : "default"}
+                      onChange={(_, date) => {
+                        setShowManualClockOutPicker(Platform.OS === "ios");
+                        if (date) setManualClockOut(date);
+                      }}
+                      themeVariant="dark"
+                    />
+                  )}
+                </View>
+              </View>
+
+              {/* Calculated Hours */}
+              {manualClockOut > manualClockIn && (
+                <View style={styles.calcHours}>
+                  <Ionicons name="hourglass-outline" size={14} color="#5EEAD4" />
+                  <Text style={styles.calcHoursText}>
+                    {((manualClockOut.getTime() - manualClockIn.getTime()) / 3600000).toFixed(1)} hours
+                  </Text>
+                </View>
+              )}
+
+              {/* Reason (required) */}
+              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Reason *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={manualReason}
+                onChangeText={setManualReason}
+                placeholder="e.g., Forgot to clock in, timesheet correction..."
+                placeholderTextColor="#5A6A80"
+                multiline
+              />
+
+              {/* Notes (optional) */}
+              <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Notes</Text>
+              <TextInput
+                style={styles.textInput}
+                value={manualNotes}
+                onChangeText={setManualNotes}
+                placeholder="Additional notes (optional)"
+                placeholderTextColor="#5A6A80"
+                multiline
+              />
+
+              <TouchableOpacity
+                style={[styles.submitBtn, styles.submitBtnManual, (!manualEmployee || !manualProject || !manualReason.trim()) && styles.submitBtnDisabled]}
+                onPress={handleManualEntry}
+                disabled={manualSubmitting || !manualEmployee || !manualProject || !manualReason.trim()}
+                activeOpacity={0.7}
+              >
+                {manualSubmitting ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="create" size={18} color="#FFFFFF" />
+                    <Text style={styles.submitBtnText}>Create Manual Entry</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <View style={{ height: 30 }} />
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -458,35 +836,6 @@ const styles = StyleSheet.create({
   projectSection: { paddingHorizontal: 16, paddingTop: 12 },
   selectLabel: { color: "#8892A4", fontSize: 13, marginBottom: 12, marginTop: 4 },
 
-  // Chip Grid (2 columns)
-  chipGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    width: CHIP_WIDTH,
-    paddingVertical: 10, paddingHorizontal: 12,
-    backgroundColor: "#0F1D32", borderRadius: 20,
-    borderWidth: 1, borderColor: "#1A2A40",
-    flexDirection: "row", alignItems: "center", gap: 8,
-  },
-  chipSelected: { borderColor: "#3B82F6", backgroundColor: "#0F1D42" },
-  chipRadio: {
-    width: 14, height: 14, borderRadius: 7,
-    borderWidth: 1.5, borderColor: "#5A6A80",
-  },
-  chipRadioSelected: { borderColor: "#3B82F6", backgroundColor: "#3B82F6" },
-  chipText: { color: "#C8D0DC", fontSize: 12, flex: 1 },
-  chipTextSelected: { color: "#FFFFFF", fontWeight: "600" },
-
-  // Search chip (opens modal)
-  searchChip: {
-    width: CHIP_WIDTH,
-    paddingVertical: 10, paddingHorizontal: 12,
-    backgroundColor: "transparent", borderRadius: 20,
-    borderWidth: 1, borderColor: "#3B82F6",
-    flexDirection: "row", alignItems: "center", gap: 6,
-    justifyContent: "center",
-  },
-  searchChipText: { color: "#3B82F6", fontSize: 12, fontWeight: "500" },
-
   // Circular Clock Button
   clockSection: { alignItems: "center", paddingVertical: 20 },
   circularButton: {
@@ -499,6 +848,18 @@ const styles = StyleSheet.create({
   circularButtonOut: { backgroundColor: "#EF4444" },
   circularButtonDisabled: { backgroundColor: "#3A5A5A", opacity: 0.6 },
   circularButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800", marginTop: 4, letterSpacing: 1 },
+
+  // Supervisor Actions
+  supervisorSection: { paddingHorizontal: 16, marginBottom: 12 },
+  supervisorHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
+  supervisorTitle: { color: "#3B82F6", fontSize: 13, fontWeight: "700", letterSpacing: 0.5 },
+  supervisorButtons: { flexDirection: "row", gap: 10 },
+  supervisorBtn: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    backgroundColor: "#0F1D32", borderRadius: 10, paddingVertical: 12,
+    borderWidth: 1, borderColor: "#1A2A40",
+  },
+  supervisorBtnText: { color: "#E2E8F0", fontSize: 12, fontWeight: "600" },
 
   // Crew Section
   crewSection: { paddingHorizontal: 16, marginTop: 4 },
@@ -541,46 +902,54 @@ const styles = StyleSheet.create({
   emptyCrewText: { color: "#5A6A80", fontSize: 13 },
 
   // =========================================================================
-  // SEARCH MODAL (Bottom Sheet)
+  // MODALS
   // =========================================================================
   modalOverlay: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.5)",
+    flex: 1, backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "flex-end",
   },
   modalContainer: {
     backgroundColor: "#0F1D32",
     borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    maxHeight: height * 0.7,
+    maxHeight: height * 0.75,
     paddingBottom: Platform.OS === "ios" ? 34 : 16,
   },
   modalHeader: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12,
-  },
-  modalTitle: { color: "#FFFFFF", fontSize: 18, fontWeight: "700" },
-  modalSearchWrap: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    marginHorizontal: 20, marginBottom: 12,
-    backgroundColor: "#1A2A40", borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 10,
-  },
-  modalSearchInput: {
-    flex: 1, color: "#FFFFFF", fontSize: 15, paddingVertical: 0,
-  },
-  modalList: {
-    maxHeight: height * 0.5,
-    paddingHorizontal: 20,
-  },
-  modalProjectItem: {
-    paddingVertical: 14, paddingHorizontal: 4,
     borderBottomWidth: 1, borderBottomColor: "#1A2A40",
   },
-  modalProjectItemSelected: {
-    backgroundColor: "#0F2D4F", borderRadius: 8,
-    paddingHorizontal: 12, marginHorizontal: -8,
+  modalTitle: { color: "#FFFFFF", fontSize: 18, fontWeight: "700" },
+  modalBody: { paddingHorizontal: 20, paddingTop: 16 },
+
+  // Form Fields
+  fieldLabel: { color: "#8892A4", fontSize: 12, fontWeight: "600", marginBottom: 6, letterSpacing: 0.5 },
+  dateBtn: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#1A2A40", borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 12,
   },
-  modalProjectName: { color: "#E2E8F0", fontSize: 15, fontWeight: "500" },
-  modalProjectClient: { color: "#5A6A80", fontSize: 12, marginTop: 2 },
-  modalEmpty: { paddingVertical: 30, alignItems: "center" },
-  modalEmptyText: { color: "#5A6A80", fontSize: 14 },
+  dateBtnText: { color: "#E2E8F0", fontSize: 14 },
+  timeRow: { flexDirection: "row", gap: 12, marginTop: 16 },
+  timeCol: { flex: 1 },
+  calcHours: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    marginTop: 8, paddingHorizontal: 14, paddingVertical: 8,
+    backgroundColor: "#0A2A3A", borderRadius: 8,
+  },
+  calcHoursText: { color: "#5EEAD4", fontSize: 13, fontWeight: "600" },
+  textInput: {
+    backgroundColor: "#1A2A40", borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 12,
+    color: "#E2E8F0", fontSize: 14, minHeight: 44,
+    textAlignVertical: "top",
+  },
+  submitBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    backgroundColor: "#10B981", borderRadius: 10,
+    paddingVertical: 14, marginTop: 20,
+  },
+  submitBtnManual: { backgroundColor: "#F59E0B" },
+  submitBtnDisabled: { opacity: 0.5 },
+  submitBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
 });

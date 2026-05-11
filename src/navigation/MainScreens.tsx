@@ -47,6 +47,7 @@ import BillingScreen from "@/screens/main/BillingScreen";
 import AccessRolesScreen from "@/screens/main/AccessRolesScreen";
 import AdminPanelScreen from "@/screens/main/AdminPanelScreen";
 import ProfileScreen from "@/screens/main/ProfileScreen";
+import ProjectDetailScreen from "@/screens/main/ProjectDetailScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -106,6 +107,7 @@ export default function MainScreens() {
       <Stack.Screen name="Receivables" component={ReceivablesScreen} options={{ title: labels.receivables }} />
       <Stack.Screen name="Expenses" component={ExpensesScreen} options={{ title: labels.expenses }} />
       <Stack.Screen name="JobCost" component={JobCostScreen} options={{ title: labels.jobCost }} />
+      <Stack.Screen name="ProjectDetail" component={ProjectDetailScreen} options={({ route }: any) => ({ title: route.params?.projectName || "Project Detail" })} />
 
       {/* Fleet */}
       <Stack.Screen name="Vehicles" component={VehiclesScreen} options={{ title: labels.vehicles }} />

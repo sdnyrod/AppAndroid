@@ -96,7 +96,7 @@ export default function ProjectsScreen() {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.card}
-            onPress={() => navigation.navigate("JobCost", { projectId: item.id })}
+            onPress={() => navigation.navigate("ProjectDetail", { projectId: item.id, projectName: item.name })}
             activeOpacity={0.7}
           >
             <View style={styles.iconWrap}>

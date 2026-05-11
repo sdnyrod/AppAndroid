@@ -56,7 +56,10 @@
         "NSLocationAlwaysUsageDescription": "CREW needs background location access to monitor job site attendance while you are clocked in.",
         "NSLocationWhenInUseUsageDescription": "CREW needs your location to verify you are at the job site when clocking in and out.",
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["remote-notification", "location"]
+        "UIBackgroundModes": [
+          "remote-notification",
+          "location"
+        ]
       },
       "entitlements": {
         "aps-environment": "production"
@@ -109,7 +112,8 @@
             "buildToolsVersion": "35.0.0"
           }
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {

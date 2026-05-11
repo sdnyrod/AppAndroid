@@ -13,7 +13,7 @@ import { useLanguageStore } from "@/store/languageStore";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 
-const APP_VERSION = "v1.0.3";
+const APP_VERSION = "v1.2.0";
 
 interface DashboardKPIs {
   employees: { total: number; active: number };
@@ -50,6 +50,22 @@ interface BasicStats {
   totalProjects: number;
 }
 
+interface ActiveEntryRaw {
+  entry: {
+    id: number;
+    clockIn: string;
+    projectId: number | null;
+  };
+  user: {
+    id: number;
+    name: string;
+  };
+  project: {
+    id: number;
+    name: string;
+  } | null;
+}
+
 interface ActiveEntry {
   id: number;
   employeeName: string;
@@ -70,46 +86,34 @@ export default function DashboardScreen() {
   const [todayScheduleCount, setTodayScheduleCount] = useState<number>(0);
 
   const fetchDashboard = useCallback(async () => {
-    // Fire all requests independently — render as soon as the FIRST one resolves
     const statsPromise = apiClient.get<BasicStats>("dashboard.getStats").catch(() => null);
     const kpiPromise = apiClient.get<DashboardKPIs>("reports.dashboardKPIs").catch(() => null);
-    const entriesPromise = apiClient.get<ActiveEntry[]>("time.getActiveEntries").catch(() => []);
+    // FIX: Use the correct endpoint time.getAllActive instead of non-existent time.getActiveEntries
+    const entriesPromise = apiClient.get<ActiveEntryRaw[]>("time.getAllActive").catch(() => []);
 
-    // Show content as soon as the fast stats endpoint returns
     statsPromise.then((statsData) => {
       if (statsData) setBasicStats(statsData);
       setLoading(false);
     }).catch(() => { setLoading(false); });
 
-    // KPIs can arrive later — UI updates reactively
     kpiPromise.then((kpiData) => {
       if (kpiData) setKpis(kpiData);
     }).catch(() => {});
 
-    // Active entries can arrive later
-    entriesPromise.then((entries) => {
-      if (entries && Array.isArray(entries)) {
-        const mapped: ActiveEntry[] = (entries as unknown as Array<Record<string, any>>).map((entry) => ({
-          id: entry.id || 0,
-          employeeName:
-            entry.user?.name ||
-            entry.userName ||
-            entry.employeeName ||
-            t("common.worker"),
-          projectName:
-            entry.project?.name ||
-            entry.projectName ||
-            t("dashboard.noProject"),
-          clockInTime:
-            entry.clockIn ||
-            entry.clockInTime ||
-            "",
+    // Map the raw entries from time.getAllActive to our display format
+    entriesPromise.then((rawEntries) => {
+      if (rawEntries && Array.isArray(rawEntries)) {
+        const mapped: ActiveEntry[] = rawEntries.map((raw: any) => ({
+          id: raw.entry?.id || raw.id || 0,
+          employeeName: raw.user?.name || raw.employeeName || raw.userName || t("common.worker"),
+          projectName: raw.project?.name || raw.projectName || t("dashboard.noProject"),
+          clockInTime: raw.entry?.clockIn || raw.clockIn || raw.clockInTime || "",
         }));
         setActiveEntries(mapped);
       }
     }).catch(() => {});
 
-    // Fetch today's schedule count (only if user has permission)
+    // Fetch today's schedule count
     if (isOwner || hasAny("projects.view_all", "projects.view_assigned")) {
       const todayStr = new Date().toISOString().split("T")[0];
       apiClient.get<any[]>("scheduling.getByDateRange", { startDate: todayStr, endDate: todayStr })
@@ -121,7 +125,6 @@ export default function DashboardScreen() {
         .catch(() => {});
     }
 
-    // Wait for all to settle for refresh indicator
     await Promise.allSettled([statsPromise, kpiPromise, entriesPromise]);
     setRefreshing(false);
   }, [isOwner]);
@@ -164,7 +167,6 @@ export default function DashboardScreen() {
   const monthNames = [t("months.january"), t("months.february"), t("months.march"), t("months.april"), t("months.may"), t("months.june"), t("months.july"), t("months.august"), t("months.september"), t("months.october"), t("months.november"), t("months.december")];
   const dateString = `${dayNames[today.getDay()]}, ${monthNames[today.getMonth()]} ${today.getDate()}`;
 
-  // Payroll subtitle - show "Current Week" or period info
   const getPayrollSubtitle = (): string => {
     const label = kpis?.payrollPeriodLabel || "open";
     if (label.startsWith("since:")) return t("dashboard.openPayroll");
@@ -179,13 +181,12 @@ export default function DashboardScreen() {
   // ROLE-BASED CARD FILTERING
   // =========================================================================
 
-  // Define all possible stat cards
   const allStatCards = [
     {
       id: "active-workers",
       label: t("dashboard.activeWorkers"),
       value: String(basicStats?.totalEmployees || kpis?.employees?.total || 0),
-      subtitle: `${basicStats?.totalEmployees || kpis?.employees?.total || 0} total`,
+      subtitle: `${basicStats?.clockedInNow || activeEntries.length} ${t("dashboard.clockedIn") || "clocked in"}`,
       icon: "people" as const,
       color: "#3B82F6",
       gradientStart: "#1E3A5F",
@@ -195,8 +196,8 @@ export default function DashboardScreen() {
     },
     {
       id: "clock-in",
-      label: t("dashboard.clockIn"),
-      value: String(basicStats?.clockedInNow || 0),
+      label: t("dashboard.currentlyWorking") || t("dashboard.clockIn"),
+      value: String(activeEntries.length || basicStats?.clockedInNow || 0),
       subtitle: t("dashboard.workersActive"),
       icon: "pulse" as const,
       color: "#10B981",
@@ -243,14 +244,12 @@ export default function DashboardScreen() {
     },
   ];
 
-  // Filter cards based on permissions
   const statCards = allStatCards.filter((card) => {
     if (isOwner) return true;
     if (!card.requiredPermission) return true;
     return hasAny(...card.requiredPermission);
   });
 
-  // Define all quick actions with permissions
   const allQuickActions = [
     { label: t("dashboard.clockInAction"), icon: "time-outline" as const, screen: "TimeTracking", color: "#10B981", requiredPermission: ["time.clock_in_self"] },
     { label: labels.projects, icon: "folder-outline" as const, screen: "Projects", color: "#3B82F6", requiredPermission: ["projects.view_all", "projects.view_assigned"] },
@@ -259,17 +258,14 @@ export default function DashboardScreen() {
     { label: labels.myHours, icon: "clipboard-outline" as const, screen: "MyHours", color: "#10B981", requiredPermission: ["time.clock_in_self"] },
   ];
 
-  // Filter quick actions based on permissions
   const quickActions = allQuickActions.filter((action) => {
     if (isOwner) return true;
     if (!action.requiredPermission) return true;
     return hasAny(...action.requiredPermission);
-  }).slice(0, 4); // Max 4 quick actions
+  }).slice(0, 4);
 
-  // Employee-specific: if no cards visible, show a simple employee dashboard
   const isEmployeeView = statCards.length === 0 || (!isOwner && user?.role === "employee");
 
-  // Employee cards - always visible for employees
   const employeeCards = [
     {
       id: "my-hours",
@@ -298,9 +294,9 @@ export default function DashboardScreen() {
   // Project Status (only for owners/managers)
   const showProjectStatus = isOwner || hasAny("projects.view_all");
   const projectStatus = [
-    { label: labels.active, value: kpis?.projects?.active || basicStats?.activeProjects || 0, color: "#10B981" },
-    { label: t("dashboard.billing"), value: kpis?.projects?.readyForBilling || 0, color: "#F59E0B" },
-    { label: labels.completed, value: kpis?.projects?.completed || 0, color: "#3B82F6" },
+    { label: labels.active, value: kpis?.projects?.active || basicStats?.activeProjects || 0, color: "#10B981", filter: "active" },
+    { label: t("dashboard.billing"), value: kpis?.projects?.readyForBilling || 0, color: "#F59E0B", filter: "ready_for_billing" },
+    { label: labels.completed, value: kpis?.projects?.completed || 0, color: "#3B82F6", filter: "completed" },
   ];
 
   // Currently Working section (only for owners/supervisors)
@@ -322,7 +318,6 @@ export default function DashboardScreen() {
             </View>
             <Text style={styles.dateText}>{dateString}</Text>
           </View>
-          {/* Refresh button - discrete */}
           <TouchableOpacity
             style={styles.refreshBtn}
             onPress={onRefresh}
@@ -385,7 +380,10 @@ export default function DashboardScreen() {
       {/* Currently Working - only for owners/supervisors */}
       {showCurrentlyWorking && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{labels.currentlyWorking}</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{labels.currentlyWorking}</Text>
+            <Text style={styles.sectionCount}>{activeEntries.length} {activeEntries.length === 1 ? "worker" : "workers"}</Text>
+          </View>
           {activeEntries.length === 0 ? (
             <View style={styles.emptyCard}>
               <Ionicons name="people-outline" size={24} color="#5A6A80" />
@@ -422,16 +420,22 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {/* Project Status - only for owners/managers */}
+      {/* Project Status - clickable cards that navigate to Projects with filter */}
       {showProjectStatus && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{labels.projectStatus}</Text>
           <View style={styles.projectStatusRow}>
             {projectStatus.map((status, idx) => (
-              <View key={idx} style={styles.projectStatusCard}>
+              <TouchableOpacity
+                key={idx}
+                style={styles.projectStatusCard}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate("Projects", { statusFilter: status.filter })}
+              >
                 <Text style={[styles.projectStatusValue, { color: status.color }]}>{status.value}</Text>
                 <Text style={styles.projectStatusLabel}>{status.label}</Text>
-              </View>
+                <Ionicons name="chevron-forward" size={12} color="#5A6A80" style={{ marginTop: 4 }} />
+              </TouchableOpacity>
             ))}
           </View>
         </View>
@@ -462,18 +466,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // Stats Grid - Modern cards with rounded corners and gradient bg
+  // Stats Grid
   statsGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, gap: 12, marginBottom: 24 },
   statCard: {
-    borderRadius: 16,
-    padding: 16,
-    width: CARD_WIDTH,
-    borderWidth: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: 16, padding: 16, width: CARD_WIDTH, borderWidth: 2,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3,
   },
   statCardTop: { flexDirection: "row", alignItems: "center", marginBottom: 10, gap: 6 },
   statIconWrap: { width: 24, height: 24, borderRadius: 6, justifyContent: "center", alignItems: "center" },
@@ -486,7 +483,9 @@ const styles = StyleSheet.create({
 
   // Sections
   section: { paddingHorizontal: 20, marginBottom: 24 },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   sectionTitle: { color: "#FFFFFF", fontSize: 16, fontWeight: "700", marginBottom: 12 },
+  sectionCount: { color: "#8892A4", fontSize: 12, marginBottom: 12 },
 
   // Quick Actions
   quickActionsRow: { flexDirection: "row", justifyContent: "space-between" },
@@ -509,7 +508,7 @@ const styles = StyleSheet.create({
   viewAllBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 10, gap: 4 },
   viewAllText: { color: "#3B82F6", fontSize: 13, fontWeight: "500" },
 
-  // Project Status
+  // Project Status - now clickable
   projectStatusRow: { flexDirection: "row", justifyContent: "space-between" },
   projectStatusCard: { backgroundColor: "#0F1D32", borderRadius: 12, padding: 16, alignItems: "center", flex: 1, marginHorizontal: 4, borderWidth: 1, borderColor: "#1A2A40" },
   projectStatusValue: { fontSize: 24, fontWeight: "800", marginBottom: 4 },

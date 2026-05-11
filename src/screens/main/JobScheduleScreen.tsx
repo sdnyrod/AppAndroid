@@ -5,8 +5,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { apiClient } from "@/services/api";
-
 import { useLanguageStore } from "@/store/languageStore";
+
 const { width } = Dimensions.get("window");
 const DAY_WIDTH = Math.floor((width - 32) / 7);
 
@@ -24,7 +24,25 @@ interface ScheduleEvent {
   materials: { scheduleId: number; materialName: string; estimatedQuantity: number; unit: string }[];
 }
 
+// ============================================================================
+// TIMEZONE-SAFE DATE HELPERS
+// ============================================================================
 
+/**
+ * Parse a UTC date string into a LOCAL date-only representation.
+ * The backend stores dates as UTC timestamps (e.g., "2026-05-12T00:00:00.000Z").
+ * We extract the UTC date components to avoid timezone offset shifting the day.
+ */
+function parseUTCDateAsLocal(dateStr: string): Date {
+  const d = new Date(dateStr);
+  // Extract the UTC year/month/day and create a local date with those values
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+/** Get a date-only key string "YYYY-MM-DD" from a local Date */
+function dateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 function getDaysInMonth(year: number, month: number): Date[] {
   const days: Date[] = [];
@@ -56,8 +74,10 @@ export default function JobScheduleScreen() {
     try {
       const year = currentMonth.getFullYear();
       const month = currentMonth.getMonth();
-      const startDate = new Date(year, month, 1).toISOString().split("T")[0];
-      const endDate = new Date(year, month + 1, 0).toISOString().split("T")[0];
+      // Send date-only strings to avoid timezone issues
+      const startDate = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const endDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
       const data = await apiClient.get<ScheduleEvent[]>("scheduling.getByDateRange", { startDate, endDate });
       setEvents(data || []);
@@ -77,24 +97,27 @@ export default function JobScheduleScreen() {
   const firstDayOfWeek = daysInMonth[0].getDay();
   const today = new Date();
 
-  // Events for selected date
+  // Events for selected date — using timezone-safe parsing
   const selectedEvents = useMemo(() => {
+    const selKey = dateKey(selectedDate);
     return events.filter((event) => {
-      const start = new Date(event.startDate);
-      const end = event.endDate ? new Date(event.endDate) : start;
-      return selectedDate >= new Date(start.toDateString()) && selectedDate <= new Date(end.toDateString());
+      const start = parseUTCDateAsLocal(event.startDate);
+      const end = event.endDate ? parseUTCDateAsLocal(event.endDate) : start;
+      const startKey = dateKey(start);
+      const endKey = dateKey(end);
+      return selKey >= startKey && selKey <= endKey;
     });
   }, [events, selectedDate]);
 
-  // Dates that have events
+  // Dates that have events — using timezone-safe parsing
   const eventDates = useMemo(() => {
     const dates = new Set<string>();
     events.forEach((event) => {
-      const start = new Date(event.startDate);
-      const end = event.endDate ? new Date(event.endDate) : start;
+      const start = parseUTCDateAsLocal(event.startDate);
+      const end = event.endDate ? parseUTCDateAsLocal(event.endDate) : start;
       const current = new Date(start);
       while (current <= end) {
-        dates.add(current.toDateString());
+        dates.add(dateKey(current));
         current.setDate(current.getDate() + 1);
       }
     });
@@ -118,6 +141,7 @@ export default function JobScheduleScreen() {
       case "in_progress": return "#3B82F6";
       case "pending": return "#F59E0B";
       case "completed": return "#8B5CF6";
+      case "scheduled": return "#3B82F6";
       default: return "#5A6A80";
     }
   };
@@ -149,15 +173,13 @@ export default function JobScheduleScreen() {
 
       {/* Calendar Grid */}
       <View style={styles.calendarGrid}>
-        {/* Empty cells for days before first day of month */}
         {Array.from({ length: firstDayOfWeek }).map((_, idx) => (
           <View key={`empty-${idx}`} style={styles.dayCell} />
         ))}
-        {/* Day cells */}
         {daysInMonth.map((day) => {
           const isSelected = isSameDay(day, selectedDate);
           const isToday = isSameDay(day, today);
-          const hasEvent = eventDates.has(day.toDateString());
+          const hasEvent = eventDates.has(dateKey(day));
           return (
             <TouchableOpacity
               key={day.getDate()}
@@ -216,6 +238,15 @@ export default function JobScheduleScreen() {
               </View>
             </View>
 
+            {/* Date Range */}
+            <View style={styles.dateRange}>
+              <Ionicons name="calendar-outline" size={13} color="#8892A4" />
+              <Text style={styles.dateRangeText}>
+                {parseUTCDateAsLocal(event.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                {event.endDate && ` – ${parseUTCDateAsLocal(event.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+              </Text>
+            </View>
+
             {/* Memo */}
             {event.memo && (
               <Text style={styles.jobMemo}>{event.memo}</Text>
@@ -264,26 +295,6 @@ export default function JobScheduleScreen() {
                 </View>
               </View>
             )}
-
-            {/* Action Buttons */}
-            <View style={styles.jobActions}>
-              {event.status !== "completed" && event.status !== "in_progress" && (
-                <TouchableOpacity style={[styles.actionBtn, styles.actionBtnStart]}>
-                  <Ionicons name="play" size={14} color="#10B981" />
-                  <Text style={[styles.actionBtnText, { color: "#10B981" }]}>Start</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity style={[styles.actionBtn, styles.actionBtnEdit]}>
-                <Ionicons name="create-outline" size={14} color="#3B82F6" />
-                <Text style={[styles.actionBtnText, { color: "#3B82F6" }]}>{t("common.edit")}</Text>
-              </TouchableOpacity>
-              {event.status !== "completed" && (
-                <TouchableOpacity style={[styles.actionBtn, styles.actionBtnCancel]}>
-                  <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
-                  <Text style={[styles.actionBtnText, { color: "#EF4444" }]}>{t("common.cancel")}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
           </View>
         ))
       )}
@@ -349,6 +360,8 @@ const styles = StyleSheet.create({
   jobAddress: { color: "#8892A4", fontSize: 12, marginTop: 2 },
   jobStatusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4 },
   jobStatusText: { fontSize: 10, fontWeight: "700", textTransform: "capitalize" },
+  dateRange: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
+  dateRangeText: { color: "#8892A4", fontSize: 12 },
   jobMemo: { color: "#8892A4", fontSize: 12, marginTop: 10, fontStyle: "italic" },
 
   // Chips
@@ -360,12 +373,4 @@ const styles = StyleSheet.create({
   chipVehicle: { backgroundColor: "#1E3A5F" },
   chipMaterial: { backgroundColor: "#2D1B4E" },
   chipText: { color: "#E2E8F0", fontSize: 11 },
-
-  // Action Buttons
-  jobActions: { flexDirection: "row", marginTop: 14, gap: 10, borderTopWidth: 1, borderTopColor: "#1A2A40", paddingTop: 12 },
-  actionBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1 },
-  actionBtnStart: { borderColor: "#10B981" },
-  actionBtnEdit: { borderColor: "#3B82F6" },
-  actionBtnCancel: { borderColor: "#EF4444" },
-  actionBtnText: { fontSize: 12, fontWeight: "600" },
 });
