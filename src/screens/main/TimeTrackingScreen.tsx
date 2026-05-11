@@ -696,62 +696,84 @@ export default function TimeTrackingScreen() {
 
               {/* Date */}
               <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Date</Text>
-              <TouchableOpacity style={styles.dateBtn} onPress={() => setShowManualDatePicker(true)}>
+              <TouchableOpacity style={styles.dateBtn} onPress={() => setShowManualDatePicker(!showManualDatePicker)}>
                 <Ionicons name="calendar-outline" size={16} color="#8892A4" />
                 <Text style={styles.dateBtnText}>{formatDate(manualDate)}</Text>
+                <Ionicons name={showManualDatePicker ? "chevron-up" : "chevron-down"} size={16} color="#5A6A80" style={{ marginLeft: "auto" }} />
               </TouchableOpacity>
               {showManualDatePicker && (
-                <DateTimePicker
-                  value={manualDate}
-                  mode="date"
-                  display={Platform.OS === "ios" ? "spinner" : "default"}
-                  maximumDate={new Date()}
-                  onChange={(_, date) => {
-                    setShowManualDatePicker(Platform.OS === "ios");
-                    if (date) setManualDate(date);
-                  }}
-                  themeVariant="dark"
-                />
+                <View>
+                  <DateTimePicker
+                    value={manualDate}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
+                    maximumDate={new Date()}
+                    onChange={(_, date) => {
+                      if (Platform.OS !== "ios") setShowManualDatePicker(false);
+                      if (date) setManualDate(date);
+                    }}
+                    themeVariant="dark"
+                  />
+                  {Platform.OS === "ios" && (
+                    <TouchableOpacity style={styles.pickerConfirmBtn} onPress={() => setShowManualDatePicker(false)}>
+                      <Text style={styles.pickerConfirmText}>Confirm</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               )}
 
               {/* Clock In Time */}
               <View style={styles.timeRow}>
                 <View style={styles.timeCol}>
                   <Text style={styles.fieldLabel}>Clock In</Text>
-                  <TouchableOpacity style={styles.dateBtn} onPress={() => setShowManualClockInPicker(true)}>
+                  <TouchableOpacity style={styles.dateBtn} onPress={() => setShowManualClockInPicker(!showManualClockInPicker)}>
                     <Ionicons name="time-outline" size={16} color="#10B981" />
                     <Text style={styles.dateBtnText}>{formatTime(manualClockIn)}</Text>
                   </TouchableOpacity>
                   {showManualClockInPicker && (
-                    <DateTimePicker
-                      value={manualClockIn}
-                      mode="time"
-                      display={Platform.OS === "ios" ? "spinner" : "default"}
-                      onChange={(_, date) => {
-                        setShowManualClockInPicker(Platform.OS === "ios");
-                        if (date) setManualClockIn(date);
-                      }}
-                      themeVariant="dark"
-                    />
+                    <View>
+                      <DateTimePicker
+                        value={manualClockIn}
+                        mode="time"
+                        display={Platform.OS === "ios" ? "spinner" : "default"}
+                        onChange={(_, date) => {
+                          if (Platform.OS !== "ios") setShowManualClockInPicker(false);
+                          if (date) setManualClockIn(date);
+                        }}
+                        themeVariant="dark"
+                      />
+                      {Platform.OS === "ios" && (
+                        <TouchableOpacity style={styles.pickerConfirmBtn} onPress={() => setShowManualClockInPicker(false)}>
+                          <Text style={styles.pickerConfirmText}>Confirm</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   )}
                 </View>
                 <View style={styles.timeCol}>
                   <Text style={styles.fieldLabel}>Clock Out</Text>
-                  <TouchableOpacity style={styles.dateBtn} onPress={() => setShowManualClockOutPicker(true)}>
+                  <TouchableOpacity style={styles.dateBtn} onPress={() => setShowManualClockOutPicker(!showManualClockOutPicker)}>
                     <Ionicons name="time-outline" size={16} color="#EF4444" />
                     <Text style={styles.dateBtnText}>{formatTime(manualClockOut)}</Text>
                   </TouchableOpacity>
                   {showManualClockOutPicker && (
-                    <DateTimePicker
-                      value={manualClockOut}
-                      mode="time"
-                      display={Platform.OS === "ios" ? "spinner" : "default"}
-                      onChange={(_, date) => {
-                        setShowManualClockOutPicker(Platform.OS === "ios");
-                        if (date) setManualClockOut(date);
-                      }}
-                      themeVariant="dark"
-                    />
+                    <View>
+                      <DateTimePicker
+                        value={manualClockOut}
+                        mode="time"
+                        display={Platform.OS === "ios" ? "spinner" : "default"}
+                        onChange={(_, date) => {
+                          if (Platform.OS !== "ios") setShowManualClockOutPicker(false);
+                          if (date) setManualClockOut(date);
+                        }}
+                        themeVariant="dark"
+                      />
+                      {Platform.OS === "ios" && (
+                        <TouchableOpacity style={styles.pickerConfirmBtn} onPress={() => setShowManualClockOutPicker(false)}>
+                          <Text style={styles.pickerConfirmText}>Confirm</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   )}
                 </View>
               </View>
@@ -952,4 +974,18 @@ const styles = StyleSheet.create({
   submitBtnManual: { backgroundColor: "#F59E0B" },
   submitBtnDisabled: { opacity: 0.5 },
   submitBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
+  pickerConfirmBtn: {
+    alignSelf: "center",
+    backgroundColor: "#3B82F6",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 32,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  pickerConfirmText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
 });
