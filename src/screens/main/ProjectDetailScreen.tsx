@@ -17,6 +17,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as WebBrowser from "expo-web-browser";
+import * as Sharing from "expo-sharing";
+import * as FileSystem from "expo-file-system";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import { apiClient, getStoredToken } from "@/services/api";
 import { API_BASE_URL } from "@/constants/config";
@@ -197,7 +199,8 @@ export default function ProjectDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [sharing, setSharing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
 
@@ -307,6 +310,30 @@ export default function ProjectDetailScreen() {
       await uploadFiles(files);
     }
   };
+
+  // ── Share image via native share sheet ──────────────────────────────────
+  const handleShareImage = async (imageUrl: string) => {
+    try {
+      setSharing(true);
+      const fileName = imageUrl.split("/").pop() || "image.jpg";
+      const localUri = FileSystem.cacheDirectory + fileName;
+      const download = await FileSystem.downloadAsync(imageUrl, localUri);
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(download.uri);
+      } else {
+        Alert.alert("Sharing not available", "Sharing is not available on this device.");
+      }
+    } catch (err: any) {
+      Alert.alert("Error", "Could not share image.");
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  // ── Image list for navigation ───────────────────────────────────────────
+  const imageItems = data ? data.media.filter(
+    (m) => m.mediaType === "photo" || m.url?.match(/\.(jpg|jpeg|png|gif|webp)/i)
+  ) : [];
 
   // ── Open document URL ────────────────────────────────────────────────────
   const openDocument = async (url: string) => {
@@ -589,7 +616,12 @@ export default function ProjectDetailScreen() {
           return (
             <TouchableOpacity
               style={styles.mediaThumb}
-              onPress={() => isImage && setPreviewImage(item.url)}
+              onPress={() => {
+                if (isImage) {
+                  const idx = imageItems.findIndex((m) => m.id === item.id);
+                  setPreviewIndex(idx >= 0 ? idx : 0);
+                }
+              }}
             >
               {isImage ? (
                 <Image source={{ uri: item.url }} style={styles.thumbImage} resizeMode="cover" />
@@ -705,18 +737,61 @@ export default function ProjectDetailScreen() {
       {/* Tab content */}
       {tabContent[activeTab]()}
 
-      {/* Image preview modal */}
-      <Modal visible={!!previewImage} transparent animationType="fade">
+      {/* Image preview modal with navigation and share */}
+      <Modal visible={previewIndex !== null} transparent animationType="fade">
         <View style={styles.previewOverlay}>
-          <TouchableOpacity style={styles.previewClose} onPress={() => setPreviewImage(null)}>
-            <Ionicons name="close-circle" size={36} color="#FFFFFF" />
-          </TouchableOpacity>
-          {previewImage ? (
+          {/* Top bar: close + counter + share */}
+          <View style={styles.previewTopBar}>
+            <TouchableOpacity onPress={() => setPreviewIndex(null)}>
+              <Ionicons name="close" size={28} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.previewCounter}>
+              {previewIndex !== null ? `${previewIndex + 1} / ${imageItems.length}` : ""}
+            </Text>
+            <TouchableOpacity
+              onPress={() => previewIndex !== null && handleShareImage(imageItems[previewIndex].url)}
+              disabled={sharing}
+            >
+              {sharing ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="share-outline" size={26} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Image */}
+          {previewIndex !== null && imageItems[previewIndex] ? (
             <Image
-              source={{ uri: previewImage }}
+              source={{ uri: imageItems[previewIndex].url }}
               style={styles.previewImage}
               resizeMode="contain"
             />
+          ) : null}
+
+          {/* File name */}
+          {previewIndex !== null && imageItems[previewIndex] ? (
+            <Text style={styles.previewFileName} numberOfLines={1}>
+              {imageItems[previewIndex].caption || imageItems[previewIndex].fileName}
+            </Text>
+          ) : null}
+
+          {/* Navigation arrows */}
+          {previewIndex !== null && previewIndex > 0 ? (
+            <TouchableOpacity
+              style={[styles.previewNav, styles.previewNavLeft]}
+              onPress={() => setPreviewIndex(previewIndex - 1)}
+            >
+              <Ionicons name="chevron-back" size={32} color="#FFFFFF" />
+            </TouchableOpacity>
+          ) : null}
+          {previewIndex !== null && previewIndex < imageItems.length - 1 ? (
+            <TouchableOpacity
+              style={[styles.previewNav, styles.previewNavRight]}
+              onPress={() => setPreviewIndex(previewIndex + 1)}
+            >
+              <Ionicons name="chevron-forward" size={32} color="#FFFFFF" />
+            </TouchableOpacity>
           ) : null}
         </View>
       </Modal>
@@ -1040,10 +1115,48 @@ const styles = StyleSheet.create({
   // Image preview
   previewOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.95)",
+    backgroundColor: "rgba(0,0,0,0.97)",
     justifyContent: "center",
     alignItems: "center",
   },
-  previewClose: { position: "absolute", top: 60, right: 20, zIndex: 10 },
-  previewImage: { width: SCREEN_WIDTH - 32, height: SCREEN_WIDTH - 32 },
+  previewTopBar: {
+    position: "absolute",
+    top: 50,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    zIndex: 10,
+  },
+  previewCounter: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  previewImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH,
+  },
+  previewFileName: {
+    color: "#8892A4",
+    fontSize: 12,
+    marginTop: 12,
+    textAlign: "center",
+    paddingHorizontal: 20,
+  },
+  previewNav: {
+    position: "absolute",
+    top: "45%" as any,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 24,
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  previewNavLeft: { left: 8 },
+  previewNavRight: { right: 8 },
 });
