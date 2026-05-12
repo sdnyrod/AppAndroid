@@ -62,7 +62,7 @@
       "entitlements": {
         "aps-environment": "production"
       },
-      "buildNumber": "6"
+      "buildNumber": "7"
     },
     "plugins": [
       "expo-secure-store",
