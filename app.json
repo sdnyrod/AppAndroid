@@ -2,7 +2,7 @@
   "expo": {
     "name": "CREW",
     "slug": "crew-app",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -62,7 +62,7 @@
       "entitlements": {
         "aps-environment": "production"
       },
-      "buildNumber": "7"
+      "buildNumber": "1"
     },
     "plugins": [
       "expo-secure-store",
