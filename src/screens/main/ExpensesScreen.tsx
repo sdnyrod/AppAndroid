@@ -20,7 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import * as ImageManipulator from "expo-image-manipulator";
-import { scanDocument, isSupported as isScannerSupported } from "@/modules/expo-document-scanner";
+import { scanDocument, isSupported as isScannerSupported } from "../../../modules/expo-document-scanner";
 import { apiClient } from "@/services/api";
 import SearchableSelect from "@/components/SearchableSelect";
 
