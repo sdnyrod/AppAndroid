@@ -12,3 +12,7 @@ web-build/
 .env.local
 android/
 ios/
+
+# But include native code in local modules
+!modules/**/android/
+!modules/**/ios/

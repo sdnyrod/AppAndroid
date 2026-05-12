@@ -20,6 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import * as ImageManipulator from "expo-image-manipulator";
+import { scanDocument, isSupported as isScannerSupported } from "@/modules/expo-document-scanner";
 import { apiClient } from "@/services/api";
 import SearchableSelect from "@/components/SearchableSelect";
 
@@ -155,18 +156,16 @@ export default function ExpensesScreen() {
     }
 
     try {
-      // Use expo-document-scanner (Nitro Module) which uses:
-      // iOS: VNDocumentCameraViewController (native Apple VisionKit scanner)
+      // Use native document scanner:
+      // iOS: VNDocumentCameraViewController (Apple VisionKit - same as Notes/Files app)
       // Android: Google ML Kit Document Scanner
-      const { scanDocument } = require('expo-document-scanner');
-      const result = await scanDocument({
-        quality: 0.92,
-        maxNumDocuments: 1,
-      });
-
-      if (result.pages && result.pages.length > 0) {
-        await processReceiptImage(result.pages[0].uri);
-        return;
+      const supported = await isScannerSupported();
+      if (supported) {
+        const scanResult = await scanDocument({ pageLimit: 1 });
+        if (scanResult.pages && scanResult.pages.length > 0) {
+          await processReceiptImage(scanResult.pages[0].uri);
+          return;
+        }
       }
     } catch (err: any) {
       const msg = err?.message || '';
@@ -174,10 +173,10 @@ export default function ExpensesScreen() {
       if (msg.toLowerCase().includes('cancel')) return;
       
       console.log("[DocumentScanner] Error:", msg);
-      // If scanner fails, fall back to ImagePicker
+      // If native scanner fails, fall back to ImagePicker
     }
 
-    // Fallback: use ImagePicker if DocumentScanner is unavailable
+    // Fallback: use ImagePicker if native DocumentScanner is unavailable
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
       Alert.alert(t("expenses.permissionRequired"), "Camera access is needed to scan receipts.");

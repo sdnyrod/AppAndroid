@@ -107,12 +107,10 @@
           "android": {
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
-            "buildToolsVersion": "35.0.0",
-            "newArchEnabled": true
+            "buildToolsVersion": "35.0.0"
           },
           "ios": {
-            "newArchEnabled": true,
-            "deploymentTarget": "16.0"
+            "deploymentTarget": "15.1"
           }
         }
       ],

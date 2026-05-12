@@ -13,7 +13,8 @@
       "@/hooks/*": ["src/hooks/*"],
       "@/utils/*": ["src/utils/*"],
       "@/types/*": ["src/types/*"],
-      "@/constants/*": ["src/constants/*"]
+      "@/constants/*": ["src/constants/*"],
+      "@/modules/*": ["modules/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", "**/*.json", ".expo/types/**/*.ts", "expo-env.d.ts"]

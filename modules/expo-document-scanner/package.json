@@ -1,0 +1,12 @@
+{
+  "name": "expo-document-scanner",
+  "version": "1.0.0",
+  "description": "Native document scanner using VisionKit (iOS) and ML Kit (Android)",
+  "main": "index.ts",
+  "author": "CREW CWM",
+  "license": "MIT",
+  "homepage": "https://crew-cwm.com",
+  "peerDependencies": {
+    "expo": "*"
+  }
+}
