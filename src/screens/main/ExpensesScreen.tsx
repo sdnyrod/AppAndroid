@@ -155,23 +155,26 @@ export default function ExpensesScreen() {
     }
 
     try {
-      // Lazy-load DocumentScanner to prevent crash if native module isn't available
-      const DocumentScanner = require("react-native-document-scanner-plugin").default;
-      const response = await DocumentScanner.scanDocument({
+      // Use expo-document-scanner (Nitro Module) which uses:
+      // iOS: VNDocumentCameraViewController (native Apple VisionKit scanner)
+      // Android: Google ML Kit Document Scanner
+      const { scanDocument } = require('expo-document-scanner');
+      const result = await scanDocument({
+        quality: 0.92,
         maxNumDocuments: 1,
-        croppedImageQuality: 90,
       });
 
-      if (response.scannedImages && response.scannedImages.length > 0) {
-        await processReceiptImage(response.scannedImages[0]);
+      if (result.pages && result.pages.length > 0) {
+        await processReceiptImage(result.pages[0].uri);
         return;
       }
-
-      // User cancelled the scan
-      if (response.status === "cancel") return;
     } catch (err: any) {
-      console.log("[DocumentScanner] Error:", err?.message);
-      // If DocumentScanner fails for any reason, fall back to ImagePicker
+      const msg = err?.message || '';
+      // If user cancelled, just return silently
+      if (msg.toLowerCase().includes('cancel')) return;
+      
+      console.log("[DocumentScanner] Error:", msg);
+      // If scanner fails, fall back to ImagePicker
     }
 
     // Fallback: use ImagePicker if DocumentScanner is unavailable

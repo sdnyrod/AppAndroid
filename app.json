@@ -115,8 +115,7 @@
           }
         }
       ],
-      "@react-native-community/datetimepicker",
-      "react-native-document-scanner-plugin"
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {
