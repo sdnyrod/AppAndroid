@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
   ActivityIndicator, TouchableOpacity, Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { apiClient } from "@/services/api";
 import { useAuthStore } from "@/store/authStore";
 import { usePermissionsStore } from "@/store/permissionsStore";
@@ -13,7 +13,7 @@ import { useLanguageStore } from "@/store/languageStore";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 
-const APP_VERSION = "v1.2.0";
+const APP_VERSION = "v1.3.0";
 
 interface DashboardKPIs {
   employees: { total: number; active: number };
@@ -129,9 +129,12 @@ export default function DashboardScreen() {
     setRefreshing(false);
   }, [isOwner]);
 
-  useEffect(() => {
-    fetchDashboard();
-  }, [fetchDashboard]);
+  // Refresh dashboard data when screen gains focus (e.g., returning from sub-screens)
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboard();
+    }, [fetchDashboard])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

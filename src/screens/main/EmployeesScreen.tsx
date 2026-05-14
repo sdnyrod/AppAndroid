@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, RefreshControl, ActivityIndicator, TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { apiClient } from "@/services/api";
 
 import { useLanguageStore } from "@/store/languageStore";
@@ -25,7 +26,12 @@ export default function EmployeesScreen() {
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  // Refresh data when screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [fetchData])
+  );
 
   useEffect(() => {
     if (!search.trim()) { setFiltered(employees); return; }

@@ -11,8 +11,8 @@ export function useNetworkStatus() {
       setOnline(state.isConnected ?? false);
     });
 
-    // Poll network status every 5 seconds
-    // (expo-network doesn't have a listener API on all platforms)
+    // Poll network status every 15 seconds (reduced from 5s to save battery)
+    // expo-network doesn't have a listener API on all platforms
     const interval = setInterval(async () => {
       try {
         const state = await Network.getNetworkStateAsync();
@@ -23,7 +23,7 @@ export function useNetworkStatus() {
       } catch {
         // Ignore errors
       }
-    }, 5000);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, []);

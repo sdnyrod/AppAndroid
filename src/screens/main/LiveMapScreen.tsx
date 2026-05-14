@@ -234,11 +234,11 @@ export default function LiveMapScreen() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 60 seconds (aligned with web version — saves battery)
   useEffect(() => {
     const interval = setInterval(() => {
       fetchData();
-    }, 30000);
+    }, 60000);
     return () => clearInterval(interval);
   }, [fetchData]);
 

@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, FlatList, ActivityIndicator,
   RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { apiClient } from "@/services/api";
 
 import { useLanguageStore } from "@/store/languageStore";
@@ -66,7 +67,12 @@ export default function ActiveWorkersScreen() {
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  // Refresh data when screen gains focus (e.g., returning from other screens)
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [fetchData])
+  );
   const onRefresh = () => { setRefreshing(true); fetchData(); };
 
   if (loading) {
