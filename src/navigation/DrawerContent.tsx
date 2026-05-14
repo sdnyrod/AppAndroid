@@ -276,6 +276,20 @@ export default function DrawerContent({ navigation }: DrawerContentComponentProp
           <Text style={styles.dashboardLabel}>{labels.dashboard}</Text>
         </TouchableOpacity>
 
+        {/* CREW Assistant - Direct link (prominent placement) */}
+        {(isOwner || user?.role === 'admin') && (
+          <TouchableOpacity
+            style={styles.assistantButton}
+            onPress={() => handleNavigate("CrewAssistant")}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.groupIconContainer, styles.assistantIconContainer]}>
+              <Ionicons name="sparkles" size={18} color="#F59E0B" />
+            </View>
+            <Text style={styles.assistantLabel}>{labels.crewAssistant}</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Separator */}
         <View style={styles.separator} />
 
@@ -408,6 +422,26 @@ const styles = StyleSheet.create({
   },
   dashboardLabel: {
     color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 10,
+  },
+  assistantButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: "#1A1708",
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: "#78350F",
+  },
+  assistantIconContainer: {
+    backgroundColor: "#78350F",
+  },
+  assistantLabel: {
+    color: "#F59E0B",
     fontSize: 14,
     fontWeight: "600",
     marginLeft: 10,

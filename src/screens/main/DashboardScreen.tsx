@@ -259,6 +259,7 @@ export default function DashboardScreen() {
     { label: labels.liveMap, icon: "map-outline" as const, screen: "LiveMap", color: "#8B5CF6", requiredPermission: ["location.view_live_map"] },
     { label: labels.estimates, icon: "calculator-outline" as const, screen: "Estimates", color: "#F59E0B", requiredPermission: ["estimates.view_list"] },
     { label: labels.myHours, icon: "clipboard-outline" as const, screen: "MyHours", color: "#10B981", requiredPermission: ["time.clock_in_self"] },
+    { label: labels.crewAssistant, icon: "sparkles" as const, screen: "CrewAssistant", color: "#F59E0B", requiredPermission: ["dashboard.view"] },
   ];
 
   const quickActions = allQuickActions.filter((action) => {

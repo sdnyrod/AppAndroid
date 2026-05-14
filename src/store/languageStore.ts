@@ -66,6 +66,7 @@ export interface LanguageLabels {
   fleetCostReport: string;
   profile: string;
   referrals: string;
+  crewAssistant: string;
   signOut: string;
   welcomeBack: string;
   noProjectsFound: string;
@@ -135,6 +136,7 @@ function buildLegacyLabels(lang: AppLanguage): LanguageLabels {
     fleetCostReport: t["fleet.costReport"] || "Fleet Cost Report",
     profile: t["profile.title"] || "Profile",
     referrals: t["referrals.title"] || "Referral Program",
+    crewAssistant: lang === "pt" ? "Assistente CREW" : lang === "es" ? "Asistente CREW" : "CREW Assistant",
     signOut: t["auth.signOut"] || "Sign Out",
     welcomeBack: t["dashboard.welcomeBack"] || "Welcome back, ",
     noProjectsFound: t["projects.noProjects"] || "No projects found",

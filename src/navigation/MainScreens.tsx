@@ -48,6 +48,7 @@ import AccessRolesScreen from "@/screens/main/AccessRolesScreen";
 import AdminPanelScreen from "@/screens/main/AdminPanelScreen";
 import ProfileScreen from "@/screens/main/ProfileScreen";
 import ProjectDetailScreen from "@/screens/main/ProjectDetailScreen";
+import CrewAssistantScreen from "@/screens/main/CrewAssistantScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -142,6 +143,8 @@ export default function MainScreens() {
       <Stack.Screen name="AccessRoles" component={AccessRolesScreen} options={{ title: labels.accessRoles }} />
       <Stack.Screen name="AdminPanel" component={AdminPanelScreen} options={{ title: labels.adminPanel }} />
 
+      {/* AI Assistant */}
+      <Stack.Screen name="CrewAssistant" component={CrewAssistantScreen} options={{ title: "CREW Assistant" }} />
       {/* Profile */}
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: labels.profile }} />
     </Stack.Navigator>
