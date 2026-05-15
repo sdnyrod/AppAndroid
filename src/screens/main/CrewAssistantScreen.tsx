@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Keyboard,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { apiClient } from "@/services/api";
@@ -75,11 +74,9 @@ export default function CrewAssistantScreen() {
   }, [messages]);
 
   // Send message to backend
-  const handleSend = useCallback(async () => {
+    const handleSend = useCallback(async () => {
     const text = inputText.trim();
     if (!text || isProcessing) return;
-
-    Keyboard.dismiss();
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -146,6 +143,8 @@ export default function CrewAssistantScreen() {
       });
     } finally {
       setIsProcessing(false);
+      // Refocus input after response
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [inputText, isProcessing, messages]);
 
@@ -260,7 +259,6 @@ export default function CrewAssistantScreen() {
             placeholderTextColor="#5A6A80"
             value={inputText}
             onChangeText={setInputText}
-            multiline
             maxLength={2000}
             returnKeyType="send"
             onSubmitEditing={handleSend}
