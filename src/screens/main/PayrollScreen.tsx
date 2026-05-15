@@ -409,13 +409,9 @@ export default function PayrollScreen() {
       setLastPaidWeek(data);
       if (data) {
         const lastEnd = new Date(data.weekEnd);
-        // Find the next Sunday (FLSA week start) after the last paid week ended
+        // Current payroll starts the day after the last paid week ended
         const nextDay = new Date(lastEnd);
         nextDay.setDate(nextDay.getDate() + 1);
-        const dow = nextDay.getDay(); // 0=Sun
-        if (dow !== 0) {
-          nextDay.setDate(nextDay.getDate() - dow); // go back to the most recent Sunday
-        }
         nextDay.setHours(0, 0, 0, 0);
         const today = new Date();
         const dayOfWeek = today.getDay();
