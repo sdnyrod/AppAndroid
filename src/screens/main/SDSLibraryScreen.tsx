@@ -8,7 +8,7 @@ export default function SDSLibraryScreen() {
     <GenericScreen
       title={t("tools.sdsLibrary")}
       icon="shield-checkmark-outline"
-      procedure="buildingCodes.list"
+      procedure="sds.list"
       emptyMessage={t("tools.noSDS")}
     />
   );

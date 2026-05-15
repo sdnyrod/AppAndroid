@@ -15,12 +15,12 @@ interface Project {
   status?: string;
 }
 
-const STATUS_FILTERS = [
-  { key: "all", label: "All", color: "#8892A4" },
-  { key: "active", label: "Active", color: "#10B981" },
-  { key: "ready_for_billing", label: "Ready for Billing", color: "#F59E0B" },
-  { key: "completed", label: "Completed", color: "#3B82F6" },
-  { key: "paused", label: "Paused", color: "#6B7280" },
+const STATUS_FILTER_KEYS = [
+  { key: "all", labelKey: "common.all", color: "#8892A4" },
+  { key: "active", labelKey: "projects.active", color: "#10B981" },
+  { key: "ready_for_billing", labelKey: "projects.billing", color: "#F59E0B" },
+  { key: "completed", labelKey: "projects.completed", color: "#3B82F6" },
+  { key: "paused", labelKey: "projects.paused", color: "#6B7280" },
 ];
 
 export default function ProjectsScreen() {
@@ -28,6 +28,8 @@ export default function ProjectsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const labels = useLanguageStore((s) => s.labels);
+
+  const STATUS_FILTERS = STATUS_FILTER_KEYS.map(f => ({ ...f, label: t(f.labelKey) }));
   const [projects, setProjects] = useState<Project[]>([]);
   const [filtered, setFiltered] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,6 +145,7 @@ export default function ProjectsScreen() {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterRow}
+        style={{ maxHeight: 40, flexGrow: 0 }}
       >
         {STATUS_FILTERS.map((filter) => (
           <TouchableOpacity
@@ -174,12 +177,12 @@ export default function ProjectsScreen() {
       {/* Results count */}
       <View style={styles.resultCountRow}>
         <Text style={styles.resultCount}>
-          {filtered.length} project{filtered.length !== 1 ? "s" : ""}
+          {filtered.length} {t("projects.title").toLowerCase()}
           {activeFilter !== "all" ? ` • ${STATUS_FILTERS.find(f => f.key === activeFilter)?.label}` : ""}
         </Text>
         {activeFilter !== "all" && (
           <TouchableOpacity onPress={() => setActiveFilter("all")}>
-            <Text style={styles.clearFilter}>Clear filter</Text>
+            <Text style={styles.clearFilter}>{t("common.filter")} ✕</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -238,7 +241,7 @@ const styles = StyleSheet.create({
   searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: "#0F1D32", margin: 16, marginBottom: 8, borderRadius: 10, paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: "#1A2A40", gap: 8 },
   searchInput: { flex: 1, color: "#FFFFFF", fontSize: 14 },
   filterRow: { paddingHorizontal: 16, paddingBottom: 8, gap: 8 },
-  filterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: "#0F1D32", borderWidth: 1, borderColor: "#1A2A40", flexDirection: "row", alignItems: "center", gap: 4 },
+  filterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: "#0F1D32", borderWidth: 1, borderColor: "#1A2A40", flexDirection: "row", alignItems: "center", gap: 4, height: 30 },
   filterChipText: { color: "#8892A4", fontSize: 12, fontWeight: "500" },
   filterCount: { fontSize: 11, fontWeight: "700" },
   resultCountRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingBottom: 8 },

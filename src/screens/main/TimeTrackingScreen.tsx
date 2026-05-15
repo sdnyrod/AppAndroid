@@ -540,16 +540,16 @@ export default function TimeTrackingScreen() {
         <View style={styles.supervisorSection}>
           <View style={styles.supervisorHeader}>
             <Ionicons name="shield-checkmark" size={16} color="#3B82F6" />
-            <Text style={styles.supervisorTitle}>Supervisor Actions</Text>
+            <Text style={styles.supervisorTitle}>{t("time.supervisorActions")}</Text>
           </View>
           <View style={styles.supervisorButtons}>
             <TouchableOpacity style={styles.supervisorBtn} onPress={openClockInModal} activeOpacity={0.7}>
               <Ionicons name="person-add" size={16} color="#10B981" />
-              <Text style={styles.supervisorBtnText}>Clock In Employee</Text>
+              <Text style={styles.supervisorBtnText}>{t("time.clockInEmployee")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.supervisorBtn} onPress={openManualModal} activeOpacity={0.7}>
               <Ionicons name="create" size={16} color="#F59E0B" />
-              <Text style={styles.supervisorBtnText}>Manual Entry</Text>
+              <Text style={styles.supervisorBtnText}>{t("time.manualEntry")}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -567,7 +567,7 @@ export default function TimeTrackingScreen() {
             <>
               <View style={styles.crewSubheader}>
                 <View style={styles.crewLiveDot} />
-                <Text style={styles.crewSubtitleGreen}>WORKING NOW ({crewWorking.length})</Text>
+                <Text style={styles.crewSubtitleGreen}>{t("time.workingNow")} ({crewWorking.length})</Text>
               </View>
               {crewWorking.map((member) => (
                 <View key={`${member.id}-${member.entryId}`} style={styles.crewCard}>
@@ -613,29 +613,29 @@ export default function TimeTrackingScreen() {
         <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Clock In Employee</Text>
+              <Text style={styles.modalTitle}>{t("time.clockInEmployee")}</Text>
               <TouchableOpacity onPress={() => setShowClockInModal(false)}>
                 <Ionicons name="close" size={24} color="#8892A4" />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.modalBody}>
-              <Text style={styles.fieldLabel}>Employee</Text>
+              <Text style={styles.fieldLabel}>{t("time.employee")}</Text>
               <SearchableSelect
                 items={employees.map((e) => ({ id: e.id, name: e.name, subtitle: e.role || e.department }))}
                 selectedId={clockInEmployee}
                 onSelect={(item) => setClockInEmployee(item.id)}
-                placeholder="Search employee..."
+                placeholder={t("time.searchEmployee")}
                 icon="person-outline"
                 iconColor="#10B981"
               />
 
-              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Project</Text>
+              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>{t("time.project")}</Text>
               <SearchableSelect
                 items={activeProjects.map((p) => ({ id: p.id, name: p.name, subtitle: p.clientName }))}
                 selectedId={clockInProject}
                 onSelect={(item) => setClockInProject(item.id)}
-                placeholder="Search project..."
+                placeholder={t("time.searchProject")}
                 icon="business-outline"
                 iconColor="#5EEAD4"
               />
@@ -651,7 +651,7 @@ export default function TimeTrackingScreen() {
                 ) : (
                   <>
                     <Ionicons name="play-circle" size={18} color="#FFFFFF" />
-                    <Text style={styles.submitBtnText}>Clock In</Text>
+                    <Text style={styles.submitBtnText}>{t("time.clockIn")}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -667,35 +667,35 @@ export default function TimeTrackingScreen() {
         <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={[styles.modalContainer, { maxHeight: height * 0.85 }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Manual Time Entry</Text>
+              <Text style={styles.modalTitle}>{t("time.manualTimeEntry")}</Text>
               <TouchableOpacity onPress={() => setShowManualModal(false)}>
                 <Ionicons name="close" size={24} color="#8892A4" />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-              <Text style={styles.fieldLabel}>Employee</Text>
+              <Text style={styles.fieldLabel}>{t("time.employee")}</Text>
               <SearchableSelect
                 items={employees.map((e) => ({ id: e.id, name: e.name, subtitle: e.role || e.department }))}
                 selectedId={manualEmployee}
                 onSelect={(item) => setManualEmployee(item.id)}
-                placeholder="Search employee..."
+                placeholder={t("time.searchEmployee")}
                 icon="person-outline"
                 iconColor="#10B981"
               />
 
-              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Project</Text>
+              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>{t("time.project")}</Text>
               <SearchableSelect
                 items={activeProjects.map((p) => ({ id: p.id, name: p.name, subtitle: p.clientName }))}
                 selectedId={manualProject}
                 onSelect={(item) => setManualProject(item.id)}
-                placeholder="Search project..."
+                placeholder={t("time.searchProject")}
                 icon="business-outline"
                 iconColor="#5EEAD4"
               />
 
               {/* Date */}
-              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Date</Text>
+              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>{t("time.date")}</Text>
               <TouchableOpacity style={styles.dateBtn} onPress={() => setShowManualDatePicker(!showManualDatePicker)}>
                 <Ionicons name="calendar-outline" size={16} color="#8892A4" />
                 <Text style={styles.dateBtnText}>{formatDate(manualDate)}</Text>
@@ -716,7 +716,7 @@ export default function TimeTrackingScreen() {
                   />
                   {Platform.OS === "ios" && (
                     <TouchableOpacity style={styles.pickerConfirmBtn} onPress={() => setShowManualDatePicker(false)}>
-                      <Text style={styles.pickerConfirmText}>Confirm</Text>
+                      <Text style={styles.pickerConfirmText}>{t("time.confirm")}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -725,7 +725,7 @@ export default function TimeTrackingScreen() {
               {/* Clock In Time */}
               <View style={styles.timeRow}>
                 <View style={styles.timeCol}>
-                  <Text style={styles.fieldLabel}>Clock In</Text>
+                  <Text style={styles.fieldLabel}>{t("time.clockIn")}</Text>
                   <TouchableOpacity style={styles.dateBtn} onPress={() => setShowManualClockInPicker(!showManualClockInPicker)}>
                     <Ionicons name="time-outline" size={16} color="#10B981" />
                     <Text style={styles.dateBtnText}>{formatTime(manualClockIn)}</Text>
@@ -744,14 +744,14 @@ export default function TimeTrackingScreen() {
                       />
                       {Platform.OS === "ios" && (
                         <TouchableOpacity style={styles.pickerConfirmBtn} onPress={() => setShowManualClockInPicker(false)}>
-                          <Text style={styles.pickerConfirmText}>Confirm</Text>
+                          <Text style={styles.pickerConfirmText}>{t("time.confirm")}</Text>
                         </TouchableOpacity>
                       )}
                     </View>
                   )}
                 </View>
                 <View style={styles.timeCol}>
-                  <Text style={styles.fieldLabel}>Clock Out</Text>
+                  <Text style={styles.fieldLabel}>{t("time.clockOut")}</Text>
                   <TouchableOpacity style={styles.dateBtn} onPress={() => setShowManualClockOutPicker(!showManualClockOutPicker)}>
                     <Ionicons name="time-outline" size={16} color="#EF4444" />
                     <Text style={styles.dateBtnText}>{formatTime(manualClockOut)}</Text>
@@ -770,7 +770,7 @@ export default function TimeTrackingScreen() {
                       />
                       {Platform.OS === "ios" && (
                         <TouchableOpacity style={styles.pickerConfirmBtn} onPress={() => setShowManualClockOutPicker(false)}>
-                          <Text style={styles.pickerConfirmText}>Confirm</Text>
+                          <Text style={styles.pickerConfirmText}>{t("time.confirm")}</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -783,29 +783,29 @@ export default function TimeTrackingScreen() {
                 <View style={styles.calcHours}>
                   <Ionicons name="hourglass-outline" size={14} color="#5EEAD4" />
                   <Text style={styles.calcHoursText}>
-                    {((manualClockOut.getTime() - manualClockIn.getTime()) / 3600000).toFixed(1)} hours
+                    {((manualClockOut.getTime() - manualClockIn.getTime()) / 3600000).toFixed(1)} {t("time.hours")}
                   </Text>
                 </View>
               )}
 
               {/* Reason (required) */}
-              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Reason *</Text>
+              <Text style={[styles.fieldLabel, { marginTop: 16 }]}>{t("time.reason")} *</Text>
               <TextInput
                 style={styles.textInput}
                 value={manualReason}
                 onChangeText={setManualReason}
-                placeholder="e.g., Forgot to clock in, timesheet correction..."
+                placeholder={t("time.reasonPlaceholder")}
                 placeholderTextColor="#5A6A80"
                 multiline
               />
 
               {/* Notes (optional) */}
-              <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Notes</Text>
+              <Text style={[styles.fieldLabel, { marginTop: 12 }]}>{t("time.notes")}</Text>
               <TextInput
                 style={styles.textInput}
                 value={manualNotes}
                 onChangeText={setManualNotes}
-                placeholder="Additional notes (optional)"
+                placeholder={t("time.notesPlaceholder")}
                 placeholderTextColor="#5A6A80"
                 multiline
               />
@@ -821,7 +821,7 @@ export default function TimeTrackingScreen() {
                 ) : (
                   <>
                     <Ionicons name="create" size={18} color="#FFFFFF" />
-                    <Text style={styles.submitBtnText}>Create Manual Entry</Text>
+                    <Text style={styles.submitBtnText}>{t("time.createManualEntry")}</Text>
                   </>
                 )}
               </TouchableOpacity>

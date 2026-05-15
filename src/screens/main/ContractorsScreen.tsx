@@ -6,10 +6,10 @@ export default function ContractorsScreen() {
   const { t } = useLanguageStore();
   return (
     <GenericScreen
-      title={t("common.featureComingSoon")}
+      title={t("contractors.title") || "Contractors"}
       icon="handshake-outline"
-      procedure="users.getEmployees"
-      emptyMessage={t("common.featureComingSoon")}
+      procedure="contractors.list"
+      emptyMessage={t("contractors.noContractors") || "No contractors found"}
     />
   );
 }

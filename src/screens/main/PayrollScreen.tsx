@@ -405,7 +405,11 @@ export default function PayrollScreen() {
   // Fetch last paid week
   const fetchLastPaidWeek = useCallback(async () => {
     try {
-      const data = await apiClient.get<LastPaidWeek>("time.getLastPaidWeek");
+      const res = await apiClient.query<LastPaidWeek>("time.getLastPaidWeek");
+      const data = res.ok ? res.data ?? null : null;
+      if (!res.ok) {
+        console.warn("[Payroll] getLastPaidWeek failed:", res.status, res.error);
+      }
       setLastPaidWeek(data);
       if (data) {
         const lastEnd = new Date(data.weekEnd);
@@ -435,17 +439,21 @@ export default function PayrollScreen() {
     if (initialLoad) return;
     try {
       setError(null);
-      const data = await apiClient.get<PayrollReport>("time.getPayrollReport", {
+      const res = await apiClient.query<PayrollReport>("time.getPayrollReport", {
         startDate: startDate,
         endDate: endDate,
       });
-      if (data) {
-        setReport(data);
+      if (res.ok && res.data) {
+        setReport(res.data);
       } else {
         setReport(null);
-        setError(t("payroll.failedLoad"));
+        // Show the real error from the server, not just a generic message
+        const errorMsg = res.error || t("payroll.failedLoad");
+        console.warn("[Payroll] Failed to load:", res.status, errorMsg);
+        setError(errorMsg);
       }
     } catch (e: any) {
+      console.warn("[Payroll] Exception:", e?.message);
       setError(e?.message || t("payroll.failedLoad"));
     } finally {
       setLoading(false);

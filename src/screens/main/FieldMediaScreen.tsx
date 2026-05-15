@@ -12,6 +12,8 @@ import {
   Modal,
   Dimensions,
 } from "react-native";
+import { GestureDetector, Gesture, GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
@@ -294,10 +296,12 @@ export default function FieldMediaScreen() {
     ]);
   };
 
-  // Render media thumbnail
+  // Render media thumbnail with loading state
   const renderMediaItem = ({ item }: { item: MediaItem }) => {
     const isImage = item.mimeType?.startsWith("image/");
     const isVideo = item.mimeType?.startsWith("video/");
+    const [thumbLoading, setThumbLoading] = useState(true);
+    const [thumbError, setThumbError] = useState(false);
 
     return (
       <TouchableOpacity
@@ -306,7 +310,27 @@ export default function FieldMediaScreen() {
         onLongPress={() => handleDelete(item)}
       >
         {isImage ? (
-          <Image source={{ uri: item.fileUrl }} style={styles.thumbImage} resizeMode="cover" />
+          <>
+            {thumbLoading && (
+              <View style={styles.thumbLoadingOverlay}>
+                <ActivityIndicator size="small" color="#3B82F6" />
+              </View>
+            )}
+            {thumbError ? (
+              <View style={styles.thumbPlaceholder}>
+                <Ionicons name="image-outline" size={28} color="#5A6A80" />
+                <Text style={{ color: "#5A6A80", fontSize: 9, marginTop: 2 }}>{item.fileName}</Text>
+              </View>
+            ) : (
+              <Image
+                source={{ uri: item.fileUrl }}
+                style={styles.thumbImage}
+                resizeMode="cover"
+                onLoadEnd={() => setThumbLoading(false)}
+                onError={() => { setThumbLoading(false); setThumbError(true); }}
+              />
+            )}
+          </>
         ) : (
           <View style={styles.thumbPlaceholder}>
             <Ionicons
@@ -411,24 +435,105 @@ export default function FieldMediaScreen() {
 
 
 
-      {/* Image Preview Modal */}
+      {/* Image Preview Modal with Pinch-to-Zoom */}
       <Modal visible={!!previewImage} transparent animationType="fade">
-        <View style={styles.previewOverlay}>
-          <TouchableOpacity
-            style={styles.previewClose}
-            onPress={() => setPreviewImage(null)}
-          >
-            <Ionicons name="close-circle" size={36} color="#FFFFFF" />
-          </TouchableOpacity>
-          {previewImage && (
-            <Image
-              source={{ uri: previewImage }}
-              style={styles.previewImage}
-              resizeMode="contain"
-            />
-          )}
-        </View>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <ZoomablePreview
+            imageUrl={previewImage}
+            onClose={() => setPreviewImage(null)}
+          />
+        </GestureHandlerRootView>
       </Modal>
+    </View>
+  );
+}
+
+// Zoomable Image Preview with Pinch-to-Zoom and Pan
+function ZoomablePreview({ imageUrl, onClose }: { imageUrl: string | null; onClose: () => void }) {
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+  const [imageLoading, setImageLoading] = useState(true);
+
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate((e) => {
+      scale.value = savedScale.value * e.scale;
+    })
+    .onEnd(() => {
+      if (scale.value < 1) {
+        scale.value = withTiming(1);
+        savedScale.value = 1;
+        translateX.value = withTiming(0);
+        translateY.value = withTiming(0);
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+      } else if (scale.value > 5) {
+        scale.value = withTiming(5);
+        savedScale.value = 5;
+      } else {
+        savedScale.value = scale.value;
+      }
+    });
+
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      if (savedScale.value > 1) {
+        translateX.value = savedTranslateX.value + e.translationX;
+        translateY.value = savedTranslateY.value + e.translationY;
+      }
+    })
+    .onEnd(() => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    });
+
+  const doubleTapGesture = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      if (savedScale.value > 1) {
+        scale.value = withTiming(1);
+        savedScale.value = 1;
+        translateX.value = withTiming(0);
+        translateY.value = withTiming(0);
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+      } else {
+        scale.value = withTiming(2.5);
+        savedScale.value = 2.5;
+      }
+    });
+
+  const composed = Gesture.Simultaneous(pinchGesture, panGesture, doubleTapGesture);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  return (
+    <View style={styles.previewOverlay}>
+      <TouchableOpacity style={styles.previewClose} onPress={onClose}>
+        <Ionicons name="close-circle" size={36} color="#FFFFFF" />
+      </TouchableOpacity>
+      {imageLoading && (
+        <ActivityIndicator size="large" color="#3B82F6" style={{ position: "absolute" }} />
+      )}
+      {imageUrl && (
+        <GestureDetector gesture={composed}>
+          <Animated.Image
+            source={{ uri: imageUrl }}
+            style={[styles.previewImage, animatedStyle]}
+            resizeMode="contain"
+            onLoadEnd={() => setImageLoading(false)}
+          />
+        </GestureDetector>
+      )}
     </View>
   );
 }
@@ -610,7 +715,18 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   previewImage: {
-    width: SCREEN_WIDTH - 32,
-    height: SCREEN_WIDTH - 32,
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH,
+  },
+  thumbLoadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#0F1D32",
+    zIndex: 1,
   },
 });
