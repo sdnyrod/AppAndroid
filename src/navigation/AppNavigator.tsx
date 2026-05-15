@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/authStore";
 import { usePermissionsStore } from "@/store/permissionsStore";
 import { useLanguageStore } from "@/store/languageStore";
 import { useNotificationStore } from "@/store/notificationStore";
+import { useBrandingStore } from "@/store/brandingStore";
 
 // Auth Screens
 import LoginScreen from "@/screens/auth/LoginScreen";
@@ -49,14 +50,17 @@ export default function AppNavigator() {
   }, []);
 
   const { initializePushNotifications, cleanup: cleanupNotifications } = useNotificationStore();
+  const { fetchBranding, reset: resetBranding } = useBrandingStore();
 
-  // Fetch permissions and init push notifications when authenticated
+  // Fetch permissions, branding, and init push notifications when authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
       fetchPermissions();
+      fetchBranding();
       initializePushNotifications();
     } else {
       resetPermissions();
+      resetBranding();
       cleanupNotifications();
     }
   }, [isAuthenticated, user]);

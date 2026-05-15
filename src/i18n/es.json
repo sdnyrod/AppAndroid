@@ -656,5 +656,8 @@
   "activeWorkers.noActiveWorkers": "Sin trabajadores activos ahora",
   "myHours.weekTotal": "Total de la Semana",
   "time.confirmClockOut": "Confirmar Salida",
-  "time.clockOutConfirmMessage": "Registrar salida de"
+  "time.clockOutConfirmMessage": "Registrar salida de",
+  "dashboard.goodMorning": "Buenos días",
+  "dashboard.goodAfternoon": "Buenas tardes",
+  "dashboard.goodEvening": "Buenas noches"
 }

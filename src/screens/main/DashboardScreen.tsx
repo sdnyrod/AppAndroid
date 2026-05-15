@@ -1,32 +1,35 @@
 import React, { useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
-  ActivityIndicator, TouchableOpacity, Dimensions,
+  ActivityIndicator, TouchableOpacity, Dimensions, Platform, Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import Animated, {
+  FadeInDown,
+  FadeInRight,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 import { apiClient } from "@/services/api";
 import { useAuthStore } from "@/store/authStore";
 import { usePermissionsStore } from "@/store/permissionsStore";
 import { useLanguageStore } from "@/store/languageStore";
+import { useBrandingStore } from "@/store/brandingStore";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
+const APP_VERSION = "v1.4.0";
 
-const APP_VERSION = "v1.3.0";
-
+// ─── Types ──────────────────────────────────────────────────────────────────
 interface DashboardKPIs {
   employees: { total: number; active: number };
   projects: {
-    total: number;
-    active: number;
-    activeBudget: number;
-    readyForBilling: number;
-    readyForBillingBudget: number;
-    completed: number;
-    completedBudget: number;
-    paused: number;
-    pausedBudget: number;
+    total: number; active: number; activeBudget: number;
+    readyForBilling: number; readyForBillingBudget: number;
+    completed: number; completedBudget: number;
+    paused: number; pausedBudget: number;
   };
   hoursThisMonth: number;
   payrollThisMonth: number;
@@ -35,11 +38,8 @@ interface DashboardKPIs {
   expensesThisMonth: number;
   contractors: number;
   inventory: {
-    totalValue: number;
-    totalItems: number;
-    uniqueMaterials: number;
-    lowStockAlerts: number;
-    recentEvents: number;
+    totalValue: number; totalItems: number; uniqueMaterials: number;
+    lowStockAlerts: number; recentEvents: number;
   };
 }
 
@@ -51,19 +51,9 @@ interface BasicStats {
 }
 
 interface ActiveEntryRaw {
-  entry: {
-    id: number;
-    clockIn: string;
-    projectId: number | null;
-  };
-  user: {
-    id: number;
-    name: string;
-  };
-  project: {
-    id: number;
-    name: string;
-  } | null;
+  entry: { id: number; clockIn: string; projectId: number | null };
+  user: { id: number; name: string };
+  project: { id: number; name: string } | null;
 }
 
 interface ActiveEntry {
@@ -73,11 +63,76 @@ interface ActiveEntry {
   clockInTime: string;
 }
 
+// ─── Animated Card ──────────────────────────────────────────────────────────
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+
+function GlassStatCard({
+  label, value, subtitle, icon, color, live, onPress, delay, primaryColor,
+}: {
+  label: string; value: string; subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap; color: string;
+  live?: boolean; onPress: () => void; delay: number;
+  primaryColor: string;
+}) {
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const isIOS = Platform.OS === "ios";
+  const cardBg = isIOS ? `${color}10` : `${color}14`;
+  const borderCol = isIOS ? `${color}28` : `${color}1A`;
+  const radius = isIOS ? 20 : 24;
+
+  return (
+    <Animated.View entering={FadeInDown.delay(delay).duration(400).springify()}>
+      <AnimatedTouchable
+        style={[
+          styles.glassCard,
+          {
+            backgroundColor: cardBg,
+            borderColor: borderCol,
+            borderRadius: radius,
+            width: CARD_WIDTH,
+          },
+          isIOS && styles.iosCardShadow,
+          !isIOS && { elevation: 3 },
+          animStyle,
+        ]}
+        onPress={onPress}
+        onPressIn={() => { scale.value = withSpring(0.96, { damping: 15, stiffness: 300 }); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
+        activeOpacity={0.9}
+      >
+        {isIOS && (
+          <View style={[styles.glassEdge, { backgroundColor: `${color}18` }]} />
+        )}
+        <View style={styles.cardHeader}>
+          <View style={[styles.iconCircle, { backgroundColor: `${color}20` }]}>
+            <Ionicons name={icon} size={14} color={color} />
+          </View>
+          <Text style={[styles.cardLabel, { color }]} numberOfLines={1}>{label}</Text>
+          {live && (
+            <View style={styles.livePill}>
+              <View style={styles.liveDotSmall} />
+              <Text style={styles.liveLabel}>LIVE</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.cardValue}>{value}</Text>
+        <Text style={[styles.cardSubtitle, { color: `${color}BB` }]}>{subtitle}</Text>
+      </AnimatedTouchable>
+    </Animated.View>
+  );
+}
+
+// ─── Main Dashboard ─────────────────────────────────────────────────────────
 export default function DashboardScreen() {
   const navigation = useNavigation<any>();
   const user = useAuthStore((s) => s.user);
   const { has, hasAny, isOwner, loaded: permissionsLoaded } = usePermissionsStore();
   const { labels, t } = useLanguageStore();
+  const branding = useBrandingStore((s) => s.branding);
+  const palette = useBrandingStore((s) => s.palette);
+
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
   const [basicStats, setBasicStats] = useState<BasicStats | null>(null);
   const [activeEntries, setActiveEntries] = useState<ActiveEntry[]>([]);
@@ -85,10 +140,16 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [todayScheduleCount, setTodayScheduleCount] = useState<number>(0);
 
+  const primaryColor = branding?.primaryColor || "#3B82F6";
+  const accentColor = branding?.accentColor || "#10B981";
+  const companyName = branding?.name || "CREW";
+  const surfaceBg = palette?.surface || "#0A1628";
+  const surfaceContainer = palette?.surfaceContainer || "#0F1D32";
+
+  // ─── Data Fetching (preserved from original) ───────────────────────────
   const fetchDashboard = useCallback(async () => {
     const statsPromise = apiClient.get<BasicStats>("dashboard.getStats").catch(() => null);
     const kpiPromise = apiClient.get<DashboardKPIs>("reports.dashboardKPIs").catch(() => null);
-    // FIX: Use the correct endpoint time.getAllActive instead of non-existent time.getActiveEntries
     const entriesPromise = apiClient.get<ActiveEntryRaw[]>("time.getAllActive").catch(() => []);
 
     statsPromise.then((statsData) => {
@@ -100,7 +161,6 @@ export default function DashboardScreen() {
       if (kpiData) setKpis(kpiData);
     }).catch(() => {});
 
-    // Map the raw entries from time.getAllActive to our display format
     entriesPromise.then((rawEntries) => {
       if (rawEntries && Array.isArray(rawEntries)) {
         const mapped: ActiveEntry[] = rawEntries.map((raw: any) => ({
@@ -113,14 +173,11 @@ export default function DashboardScreen() {
       }
     }).catch(() => {});
 
-    // Fetch today's schedule count
     if (isOwner || hasAny("projects.view_all", "projects.view_assigned")) {
       const todayStr = new Date().toISOString().split("T")[0];
       apiClient.get<any[]>("scheduling.getByDateRange", { startDate: todayStr, endDate: todayStr })
         .then((schedules) => {
-          if (schedules && Array.isArray(schedules)) {
-            setTodayScheduleCount(schedules.length);
-          }
+          if (schedules && Array.isArray(schedules)) setTodayScheduleCount(schedules.length);
         })
         .catch(() => {});
     }
@@ -129,46 +186,41 @@ export default function DashboardScreen() {
     setRefreshing(false);
   }, [isOwner]);
 
-  // Refresh dashboard data when screen gains focus (e.g., returning from sub-screens)
   useFocusEffect(
-    useCallback(() => {
-      fetchDashboard();
-    }, [fetchDashboard])
+    useCallback(() => { fetchDashboard(); }, [fetchDashboard])
   );
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchDashboard();
-  };
+  const onRefresh = () => { setRefreshing(true); fetchDashboard(); };
 
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-      </View>
-    );
-  }
-
-  const formatTime = (isoString: string): string => {
-    if (!isoString) return "";
-    try {
-      return new Date(isoString).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    } catch {
-      return "";
-    }
-  };
-
+  // ─── Helpers ────────────────────────────────────────────────────────────
   const formatCurrency = (value: number): string => {
     if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `$${Math.round(value).toLocaleString()}`;
     return `$${value.toFixed(0)}`;
   };
 
-  // Date display
+  const formatTime = (isoString: string): string => {
+    if (!isoString) return "";
+    try {
+      const d = new Date(isoString);
+      const now = new Date();
+      const diffMs = now.getTime() - d.getTime();
+      const diffH = Math.floor(diffMs / 3600000);
+      const diffM = Math.floor((diffMs % 3600000) / 60000);
+      if (diffH > 0) return `${diffH}h ${diffM}m`;
+      return `${diffM}m`;
+    } catch { return ""; }
+  };
+
   const today = new Date();
   const dayNames = [t("days.sunday"), t("days.monday"), t("days.tuesday"), t("days.wednesday"), t("days.thursday"), t("days.friday"), t("days.saturday")];
   const monthNames = [t("months.january"), t("months.february"), t("months.march"), t("months.april"), t("months.may"), t("months.june"), t("months.july"), t("months.august"), t("months.september"), t("months.october"), t("months.november"), t("months.december")];
   const dateString = `${dayNames[today.getDay()]}, ${monthNames[today.getMonth()]} ${today.getDate()}`;
+
+  const hour = today.getHours();
+  const greetingText = t(
+    hour < 12 ? "dashboard.goodMorning" : hour < 18 ? "dashboard.goodAfternoon" : "dashboard.goodEvening"
+  ) || (hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening");
 
   const getPayrollSubtitle = (): string => {
     const label = kpis?.payrollPeriodLabel || "open";
@@ -180,21 +232,24 @@ export default function DashboardScreen() {
     return t("dashboard.currentWeek");
   };
 
-  // =========================================================================
-  // ROLE-BASED CARD FILTERING
-  // =========================================================================
+  const firstName = (user?.name || "User").split(" ")[0];
 
+  if (loading) {
+    return (
+      <View style={[styles.centered, { backgroundColor: surfaceBg }]}>
+        <ActivityIndicator size="large" color={primaryColor} />
+      </View>
+    );
+  }
+
+  // ─── Role-based Cards ─────────────────────────────────────────────────
   const allStatCards = [
     {
       id: "active-workers",
       label: t("dashboard.activeWorkers"),
       value: String(basicStats?.totalEmployees || kpis?.employees?.total || 0),
       subtitle: `${basicStats?.clockedInNow || activeEntries.length} ${t("dashboard.clockedIn") || "clocked in"}`,
-      icon: "people" as const,
-      color: "#3B82F6",
-      gradientStart: "#1E3A5F",
-      screen: "ActiveWorkers",
-      live: false,
+      icon: "people" as const, color: primaryColor, screen: "ActiveWorkers", live: false,
       requiredPermission: ["employees.view_list", "time.view_active_workers"],
     },
     {
@@ -202,11 +257,7 @@ export default function DashboardScreen() {
       label: t("dashboard.currentlyWorking") || t("dashboard.clockIn"),
       value: String(activeEntries.length || basicStats?.clockedInNow || 0),
       subtitle: t("dashboard.workersActive"),
-      icon: "pulse" as const,
-      color: "#10B981",
-      gradientStart: "#0D3B2F",
-      live: true,
-      screen: "TimeTracking",
+      icon: "pulse" as const, color: accentColor, live: true, screen: "TimeTracking",
       requiredPermission: ["time.view_all_entries", "time.view_active_workers"],
     },
     {
@@ -214,11 +265,7 @@ export default function DashboardScreen() {
       label: t("dashboard.payroll"),
       value: formatCurrency(kpis?.payrollThisMonth || 0),
       subtitle: getPayrollSubtitle(),
-      icon: "cash" as const,
-      color: "#EF4444",
-      gradientStart: "#3B1515",
-      screen: "Payroll",
-      live: false,
+      icon: "cash" as const, color: "#EF4444", screen: "Payroll", live: false,
       requiredPermission: ["payroll.view_report"],
     },
     {
@@ -226,11 +273,7 @@ export default function DashboardScreen() {
       label: t("dashboard.activeProjects"),
       value: String(kpis?.projects?.active || basicStats?.activeProjects || 0),
       subtitle: formatCurrency(kpis?.projects?.activeBudget || 0),
-      icon: "folder-open" as const,
-      color: "#F59E0B",
-      gradientStart: "#3B2E0A",
-      screen: "Projects",
-      live: false,
+      icon: "folder-open" as const, color: "#F59E0B", screen: "Projects", live: false,
       requiredPermission: ["projects.view_all", "projects.view_assigned"],
     },
     {
@@ -238,11 +281,7 @@ export default function DashboardScreen() {
       label: t("dashboard.todaysSchedule"),
       value: String(todayScheduleCount),
       subtitle: `job${todayScheduleCount !== 1 ? "s" : ""} today`,
-      icon: "calendar" as const,
-      color: "#14B8A6",
-      gradientStart: "#0A3330",
-      screen: "JobSchedule",
-      live: false,
+      icon: "calendar" as const, color: "#14B8A6", screen: "JobSchedule", live: false,
       requiredPermission: ["projects.view_all", "projects.view_assigned"],
     },
   ];
@@ -254,11 +293,11 @@ export default function DashboardScreen() {
   });
 
   const allQuickActions = [
-    { label: t("dashboard.clockInAction"), icon: "time-outline" as const, screen: "TimeTracking", color: "#10B981", requiredPermission: ["time.clock_in_self"] },
-    { label: labels.projects, icon: "folder-outline" as const, screen: "Projects", color: "#3B82F6", requiredPermission: ["projects.view_all", "projects.view_assigned"] },
+    { label: t("dashboard.clockInAction"), icon: "time-outline" as const, screen: "TimeTracking", color: accentColor, requiredPermission: ["time.clock_in_self"] },
+    { label: labels.projects, icon: "folder-outline" as const, screen: "Projects", color: primaryColor, requiredPermission: ["projects.view_all", "projects.view_assigned"] },
     { label: labels.liveMap, icon: "map-outline" as const, screen: "LiveMap", color: "#8B5CF6", requiredPermission: ["location.view_live_map"] },
     { label: labels.estimates, icon: "calculator-outline" as const, screen: "Estimates", color: "#F59E0B", requiredPermission: ["estimates.view_list"] },
-    { label: labels.myHours, icon: "clipboard-outline" as const, screen: "MyHours", color: "#10B981", requiredPermission: ["time.clock_in_self"] },
+    { label: labels.myHours, icon: "clipboard-outline" as const, screen: "MyHours", color: accentColor, requiredPermission: ["time.clock_in_self"] },
     { label: labels.crewAssistant, icon: "sparkles" as const, screen: "CrewAssistant", color: "#F59E0B", requiredPermission: ["dashboard.view"] },
   ];
 
@@ -269,170 +308,171 @@ export default function DashboardScreen() {
   }).slice(0, 4);
 
   const isEmployeeView = statCards.length === 0 || (!isOwner && user?.role === "employee");
-
   const employeeCards = [
-    {
-      id: "my-hours",
-      label: t("dashboard.myHoursCard"),
-      value: "—",
-      subtitle: t("dashboard.thisWeek"),
-      icon: "time" as const,
-      color: "#3B82F6",
-      gradientStart: "#1E3A5F",
-      screen: "MyHours",
-      live: false,
-    },
-    {
-      id: "clock-in-self",
-      label: t("dashboard.clockIn"),
-      value: "—",
-      subtitle: t("dashboard.tapToClockIn"),
-      icon: "pulse" as const,
-      color: "#10B981",
-      gradientStart: "#0D3B2F",
-      screen: "TimeTracking",
-      live: false,
-    },
+    { id: "my-hours", label: t("dashboard.myHoursCard"), value: "\u2014", subtitle: t("dashboard.thisWeek"), icon: "time" as const, color: primaryColor, screen: "MyHours", live: false },
+    { id: "clock-in-self", label: t("dashboard.clockIn"), value: "\u2014", subtitle: t("dashboard.tapToClockIn"), icon: "pulse" as const, color: accentColor, screen: "TimeTracking", live: false },
   ];
 
-  // Project Status (only for owners/managers)
   const showProjectStatus = isOwner || hasAny("projects.view_all");
   const projectStatus = [
-    { label: labels.active, value: kpis?.projects?.active || basicStats?.activeProjects || 0, color: "#10B981", filter: "active" },
+    { label: labels.active, value: kpis?.projects?.active || basicStats?.activeProjects || 0, color: accentColor, filter: "active" },
     { label: t("dashboard.billing"), value: kpis?.projects?.readyForBilling || 0, color: "#F59E0B", filter: "ready_for_billing" },
-    { label: labels.completed, value: kpis?.projects?.completed || 0, color: "#3B82F6", filter: "completed" },
+    { label: labels.completed, value: kpis?.projects?.completed || 0, color: primaryColor, filter: "completed" },
   ];
 
-  // Currently Working section (only for owners/supervisors)
   const showCurrentlyWorking = isOwner || hasAny("time.view_active_workers", "time.view_all_entries");
+  const isIOS = Platform.OS === "ios";
 
+  // ─── Render ───────────────────────────────────────────────────────────
   return (
     <ScrollView
-      style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" colors={["#3B82F6"]} />}
+      style={[styles.container, { backgroundColor: surfaceBg }]}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primaryColor} colors={[primaryColor]} />
+      }
     >
-      {/* Welcome Header */}
-      <View style={styles.welcomeSection}>
-        <View style={styles.welcomeHeaderRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.crewLabel}>CREW</Text>
-            <View style={styles.welcomeRow}>
-              <Text style={styles.welcomeText}>{labels.welcomeBack}</Text>
-              <Text style={styles.userNameHighlight}>{(user?.name || "User").split(" ")[0]}</Text>
-            </View>
-            <Text style={styles.dateText}>{dateString}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.refreshBtn}
-            onPress={onRefresh}
-            activeOpacity={0.6}
-          >
-            <Ionicons name="refresh" size={18} color="#5A6A80" />
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.versionLabel}>{APP_VERSION}</Text>
-      </View>
-
-      {/* Stat Cards - filtered by role */}
-      <View style={styles.statsGrid}>
-        {(statCards.length > 0 ? statCards : employeeCards).map((card, idx) => (
-          <TouchableOpacity
-            key={idx}
-            style={[styles.statCard, { borderColor: card.color + "60", backgroundColor: card.gradientStart }]}
-            onPress={() => navigation.navigate(card.screen)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.statCardTop}>
-              <View style={[styles.statIconWrap, { backgroundColor: card.color + "25" }]}>
-                <Ionicons name={card.icon} size={14} color={card.color} />
+      {/* ── Branded Header ─────────────────────────────────────────────── */}
+      <Animated.View entering={FadeInDown.duration(500)}>
+        <View style={[
+          styles.headerContainer,
+          isIOS
+            ? [styles.iosHeader, { backgroundColor: `${primaryColor}08`, borderColor: `${primaryColor}18` }]
+            : [styles.androidHeader, { backgroundColor: surfaceContainer }],
+        ]}>
+          {branding?.logoUrl && (
+            <Image source={{ uri: branding.logoUrl }} style={styles.logoWatermark} resizeMode="contain" />
+          )}
+          <View style={styles.headerContent}>
+            <View style={styles.headerLeft}>
+              {branding?.logoUrl ? (
+                <Image source={{ uri: branding.logoUrl }} style={styles.companyLogoSmall} resizeMode="contain" />
+              ) : (
+                <View style={[styles.logoPlaceholder, { backgroundColor: `${primaryColor}25` }]}>
+                  <Text style={[styles.logoInitial, { color: primaryColor }]}>{companyName.charAt(0)}</Text>
+                </View>
+              )}
+              <View style={styles.headerText}>
+                <Text style={[styles.companyNameText, { color: primaryColor }]} numberOfLines={1}>
+                  {companyName.toUpperCase()}
+                </Text>
+                <Text style={styles.greetingText}>
+                  {greetingText}, <Text style={[styles.nameHighlight, { color: primaryColor }]}>{firstName}</Text>
+                </Text>
+                <Text style={styles.dateText}>{dateString}</Text>
               </View>
-              <Text style={[styles.statCardLabel, { color: card.color }]}>{card.label}</Text>
-              {card.live && (
-                <View style={styles.liveBadge}>
-                  <View style={styles.liveDotSmall} />
-                  <Text style={styles.liveText}>LIVE</Text>
+            </View>
+            <View style={[styles.avatarRing, { borderColor: `${primaryColor}50` }]}>
+              {user?.avatarUrl ? (
+                <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatarFallback, { backgroundColor: `${primaryColor}25` }]}>
+                  <Text style={[styles.avatarLetter, { color: primaryColor }]}>{firstName.charAt(0).toUpperCase()}</Text>
                 </View>
               )}
             </View>
-            <Text style={styles.statCardValue}>{card.value}</Text>
-            <Text style={[styles.statCardSubtitle, { color: card.color + "CC" }]}>{card.subtitle}</Text>
-          </TouchableOpacity>
+          </View>
+          <Text style={styles.versionTag}>{APP_VERSION}</Text>
+        </View>
+      </Animated.View>
+
+      {/* ── KPI Cards Grid ─────────────────────────────────────────────── */}
+      <View style={styles.cardsGrid}>
+        {(statCards.length > 0 ? statCards : employeeCards).map((card, idx) => (
+          <GlassStatCard
+            key={card.id}
+            label={card.label}
+            value={card.value}
+            subtitle={card.subtitle}
+            icon={card.icon}
+            color={card.color}
+            live={card.live}
+            onPress={() => navigation.navigate(card.screen)}
+            delay={100 + idx * 80}
+            primaryColor={primaryColor}
+          />
         ))}
       </View>
 
-      {/* Quick Actions */}
+      {/* ── Quick Actions ──────────────────────────────────────────────── */}
       {quickActions.length > 0 && (
-        <View style={styles.section}>
+        <Animated.View entering={FadeInDown.delay(400).duration(400)} style={styles.section}>
           <Text style={styles.sectionTitle}>{labels.quickActions}</Text>
-          <View style={styles.quickActionsRow}>
-            {quickActions.map((action, idx) => (
-              <TouchableOpacity
-                key={idx}
-                style={styles.quickActionBtn}
-                onPress={() => navigation.navigate(action.screen)}
-              >
-                <View style={[styles.quickActionIcon, { backgroundColor: action.color + "20" }]}>
-                  <Ionicons name={action.icon} size={22} color={action.color} />
-                </View>
-                <Text style={styles.quickActionLabel}>{action.label}</Text>
-              </TouchableOpacity>
-            ))}
+          <View style={isIOS ? styles.quickActionsRowIOS : styles.quickActionsRowAndroid}>
+            {quickActions.map((action, idx) => {
+              if (isIOS) {
+                return (
+                  <TouchableOpacity key={idx} style={styles.quickActionBtnIOS} onPress={() => navigation.navigate(action.screen)} activeOpacity={0.7}>
+                    <View style={[styles.quickActionCircle, { backgroundColor: `${primaryColor}10`, borderColor: `${primaryColor}25` }]}>
+                      <Ionicons name={action.icon} size={22} color={action.color} />
+                    </View>
+                    <Text style={styles.quickActionLabel}>{action.label}</Text>
+                  </TouchableOpacity>
+                );
+              }
+              return (
+                <TouchableOpacity key={idx} style={[styles.quickActionPill, { backgroundColor: `${primaryColor}12`, borderColor: `${primaryColor}1A` }]} onPress={() => navigation.navigate(action.screen)} activeOpacity={0.7}>
+                  <Ionicons name={action.icon} size={18} color={action.color} />
+                  <Text style={styles.quickActionPillLabel}>{action.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        </View>
+        </Animated.View>
       )}
 
-      {/* Currently Working - only for owners/supervisors */}
+      {/* ── Currently Working ──────────────────────────────────────────── */}
       {showCurrentlyWorking && (
-        <View style={styles.section}>
+        <Animated.View entering={FadeInDown.delay(500).duration(400)} style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{labels.currentlyWorking}</Text>
             <Text style={styles.sectionCount}>{activeEntries.length} {activeEntries.length === 1 ? "worker" : "workers"}</Text>
           </View>
           {activeEntries.length === 0 ? (
-            <View style={styles.emptyCard}>
+            <View style={[styles.emptyCard, { backgroundColor: surfaceContainer, borderColor: palette?.outlineVariant || "#1A2A40" }]}>
               <Ionicons name="people-outline" size={24} color="#5A6A80" />
               <Text style={styles.emptyText}>{labels.noWorkersClocked}</Text>
             </View>
           ) : (
-            activeEntries.slice(0, 5).map((entry) => (
-              <View key={entry.id} style={styles.workerCard}>
-                <View style={styles.workerAvatar}>
-                  <Text style={styles.workerInitial}>
-                    {(entry.employeeName || "W").charAt(0).toUpperCase()}
-                  </Text>
+            activeEntries.slice(0, 5).map((entry, idx) => (
+              <Animated.View key={entry.id} entering={FadeInRight.delay(600 + idx * 60).duration(300)}>
+                <View style={[styles.workerCard, { backgroundColor: surfaceContainer, borderColor: palette?.outlineVariant || "#1A2A40" }]}>
+                  <View style={[styles.workerAvatar, { backgroundColor: `${primaryColor}20` }]}>
+                    <Text style={[styles.workerInitial, { color: primaryColor }]}>{(entry.employeeName || "W").charAt(0).toUpperCase()}</Text>
+                  </View>
+                  <View style={styles.workerInfo}>
+                    <Text style={styles.workerName}>{entry.employeeName}</Text>
+                    <Text style={styles.workerProject}>{entry.projectName}</Text>
+                  </View>
+                  <View style={styles.workerTime}>
+                    <View style={[styles.liveDot, { backgroundColor: accentColor }]} />
+                    <Text style={[styles.workerTimeText, { color: accentColor }]}>{formatTime(entry.clockInTime)}</Text>
+                  </View>
                 </View>
-                <View style={styles.workerInfo}>
-                  <Text style={styles.workerName}>{entry.employeeName}</Text>
-                  <Text style={styles.workerProject}>{entry.projectName}</Text>
-                </View>
-                <View style={styles.workerTime}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.workerTimeText}>{formatTime(entry.clockInTime)}</Text>
-                </View>
-              </View>
+              </Animated.View>
             ))
           )}
           {activeEntries.length > 5 && (
-            <TouchableOpacity
-              style={styles.viewAllBtn}
-              onPress={() => navigation.navigate("ActiveWorkers")}
-            >
-              <Text style={styles.viewAllText}>{labels.viewAll} ({activeEntries.length})</Text>
-              <Ionicons name="chevron-forward" size={14} color="#3B82F6" />
+            <TouchableOpacity style={styles.viewAllBtn} onPress={() => navigation.navigate("ActiveWorkers")}>
+              <Text style={[styles.viewAllText, { color: primaryColor }]}>{labels.viewAll} ({activeEntries.length})</Text>
+              <Ionicons name="chevron-forward" size={14} color={primaryColor} />
             </TouchableOpacity>
           )}
-        </View>
+        </Animated.View>
       )}
 
-      {/* Project Status - clickable cards that navigate to Projects with filter */}
+      {/* ── Project Status ─────────────────────────────────────────────── */}
       {showProjectStatus && (
-        <View style={styles.section}>
+        <Animated.View entering={FadeInDown.delay(600).duration(400)} style={styles.section}>
           <Text style={styles.sectionTitle}>{labels.projectStatus}</Text>
           <View style={styles.projectStatusRow}>
             {projectStatus.map((status, idx) => (
               <TouchableOpacity
                 key={idx}
-                style={styles.projectStatusCard}
+                style={[styles.projectStatusCard, {
+                  backgroundColor: isIOS ? `${status.color}0C` : `${status.color}12`,
+                  borderColor: `${status.color}25`,
+                  borderRadius: isIOS ? 16 : 20,
+                }]}
                 activeOpacity={0.7}
                 onPress={() => navigation.navigate("Projects", { statusFilter: status.filter })}
               >
@@ -442,7 +482,7 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </Animated.View>
       )}
 
       <View style={{ height: 40 }} />
@@ -450,40 +490,45 @@ export default function DashboardScreen() {
   );
 }
 
+// ─── Styles ─────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0A1628" },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0A1628" },
+  container: { flex: 1 },
+  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
 
-  // Welcome
-  welcomeSection: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16 },
-  welcomeHeaderRow: { flexDirection: "row", alignItems: "flex-start" },
-  crewLabel: { color: "#3B82F6", fontSize: 11, fontWeight: "700", letterSpacing: 1.5, marginBottom: 4 },
-  welcomeRow: { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap" },
-  welcomeText: { color: "#FFFFFF", fontSize: 22, fontWeight: "700" },
-  userNameHighlight: { color: "#3B82F6", fontSize: 22, fontWeight: "700", marginLeft: 6 },
-  versionLabel: { color: "#5A6A80", fontSize: 11, fontWeight: "500", marginTop: 4 },
-  dateText: { color: "#8892A4", fontSize: 13, marginTop: 4 },
-  refreshBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: "#0F1D32", borderWidth: 1, borderColor: "#1A2A40",
-    justifyContent: "center", alignItems: "center",
-    marginTop: 4,
-  },
+  // Header
+  headerContainer: { marginHorizontal: 16, marginTop: 12, marginBottom: 20, padding: 20, overflow: "hidden" },
+  iosHeader: { borderRadius: 24, borderWidth: 1 },
+  androidHeader: { borderRadius: 28, elevation: 3 },
+  logoWatermark: { position: "absolute", right: -20, top: -10, width: 120, height: 120, opacity: 0.06 },
+  headerContent: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  headerLeft: { flexDirection: "row", alignItems: "center", flex: 1, gap: 12 },
+  companyLogoSmall: { width: 42, height: 42, borderRadius: 12 },
+  logoPlaceholder: { width: 42, height: 42, borderRadius: 12, justifyContent: "center", alignItems: "center" },
+  logoInitial: { fontSize: 22, fontWeight: "800" },
+  headerText: { flex: 1 },
+  companyNameText: { fontSize: 11, fontWeight: "800", letterSpacing: 1.5, marginBottom: 2 },
+  greetingText: { color: "#FFFFFF", fontSize: 18, fontWeight: "700" },
+  nameHighlight: { fontWeight: "800" },
+  dateText: { color: "#8892A4", fontSize: 12, marginTop: 2 },
+  versionTag: { color: "#5A6A80", fontSize: 10, fontWeight: "500", marginTop: 8 },
+  avatarRing: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, overflow: "hidden", marginLeft: 12 },
+  avatar: { width: "100%", height: "100%", borderRadius: 23 },
+  avatarFallback: { width: "100%", height: "100%", borderRadius: 23, justifyContent: "center", alignItems: "center" },
+  avatarLetter: { fontSize: 18, fontWeight: "700" },
 
-  // Stats Grid
-  statsGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, gap: 12, marginBottom: 24 },
-  statCard: {
-    borderRadius: 16, padding: 16, width: CARD_WIDTH, borderWidth: 2,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3,
-  },
-  statCardTop: { flexDirection: "row", alignItems: "center", marginBottom: 10, gap: 6 },
-  statIconWrap: { width: 24, height: 24, borderRadius: 6, justifyContent: "center", alignItems: "center" },
-  statCardLabel: { fontSize: 10, fontWeight: "700", letterSpacing: 0.5, flex: 1 },
-  statCardValue: { color: "#FFFFFF", fontSize: 28, fontWeight: "800", marginBottom: 4 },
-  statCardSubtitle: { fontSize: 11, fontWeight: "500" },
-  liveBadge: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#10B98120", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
+  // Cards Grid
+  cardsGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, gap: 12, marginBottom: 24 },
+  glassCard: { padding: 16, borderWidth: 1, overflow: "hidden" },
+  iosCardShadow: { shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12 },
+  glassEdge: { position: "absolute", top: 0, left: 0, right: 0, height: 1 },
+  cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 10, gap: 6 },
+  iconCircle: { width: 24, height: 24, borderRadius: 8, justifyContent: "center", alignItems: "center" },
+  cardLabel: { fontSize: 10, fontWeight: "700", letterSpacing: 0.5, flex: 1, textTransform: "uppercase" },
+  cardValue: { color: "#FFFFFF", fontSize: 28, fontWeight: "800", marginBottom: 4 },
+  cardSubtitle: { fontSize: 11, fontWeight: "500" },
+  livePill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "#10B98120", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
   liveDotSmall: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#10B981" },
-  liveText: { color: "#10B981", fontSize: 8, fontWeight: "700" },
+  liveLabel: { color: "#10B981", fontSize: 8, fontWeight: "700" },
 
   // Sections
   section: { paddingHorizontal: 20, marginBottom: 24 },
@@ -492,29 +537,32 @@ const styles = StyleSheet.create({
   sectionCount: { color: "#8892A4", fontSize: 12, marginBottom: 12 },
 
   // Quick Actions
-  quickActionsRow: { flexDirection: "row", justifyContent: "space-between" },
-  quickActionBtn: { alignItems: "center", width: (width - 80) / 4 },
-  quickActionIcon: { width: 48, height: 48, borderRadius: 14, justifyContent: "center", alignItems: "center", marginBottom: 6 },
+  quickActionsRowIOS: { flexDirection: "row", justifyContent: "space-between" },
+  quickActionsRowAndroid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  quickActionBtnIOS: { alignItems: "center", width: (width - 80) / 4 },
+  quickActionCircle: { width: 52, height: 52, borderRadius: 26, borderWidth: 1, justifyContent: "center", alignItems: "center", marginBottom: 6 },
   quickActionLabel: { color: "#8892A4", fontSize: 11, fontWeight: "500", textAlign: "center" },
+  quickActionPill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, borderWidth: 0.5, gap: 6 },
+  quickActionPillLabel: { color: "#E0E0E0", fontSize: 12, fontWeight: "600" },
 
   // Workers
-  emptyCard: { backgroundColor: "#0F1D32", borderRadius: 12, padding: 24, alignItems: "center", gap: 8, borderWidth: 1, borderColor: "#1A2A40" },
+  emptyCard: { borderRadius: 16, padding: 24, alignItems: "center", gap: 8, borderWidth: 1 },
   emptyText: { color: "#5A6A80", fontSize: 13 },
-  workerCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#0F1D32", borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "#1A2A40" },
-  workerAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#1E3A5F", justifyContent: "center", alignItems: "center", marginRight: 10 },
-  workerInitial: { color: "#3B82F6", fontSize: 14, fontWeight: "700" },
+  workerCard: { flexDirection: "row", alignItems: "center", borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1 },
+  workerAvatar: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center", marginRight: 10 },
+  workerInitial: { fontSize: 14, fontWeight: "700" },
   workerInfo: { flex: 1 },
   workerName: { color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
   workerProject: { color: "#8892A4", fontSize: 11, marginTop: 2 },
   workerTime: { flexDirection: "row", alignItems: "center", gap: 4 },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#10B981" },
-  workerTimeText: { color: "#10B981", fontSize: 12, fontWeight: "500" },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
+  workerTimeText: { fontSize: 12, fontWeight: "500" },
   viewAllBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 10, gap: 4 },
-  viewAllText: { color: "#3B82F6", fontSize: 13, fontWeight: "500" },
+  viewAllText: { fontSize: 13, fontWeight: "500" },
 
-  // Project Status - now clickable
+  // Project Status
   projectStatusRow: { flexDirection: "row", justifyContent: "space-between" },
-  projectStatusCard: { backgroundColor: "#0F1D32", borderRadius: 12, padding: 16, alignItems: "center", flex: 1, marginHorizontal: 4, borderWidth: 1, borderColor: "#1A2A40" },
+  projectStatusCard: { padding: 16, alignItems: "center", flex: 1, marginHorizontal: 4, borderWidth: 1 },
   projectStatusValue: { fontSize: 24, fontWeight: "800", marginBottom: 4 },
   projectStatusLabel: { color: "#8892A4", fontSize: 11, fontWeight: "500" },
 });
