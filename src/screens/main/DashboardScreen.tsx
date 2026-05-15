@@ -325,12 +325,21 @@ export default function DashboardScreen() {
 
   // ─── Render ───────────────────────────────────────────────────────────
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: surfaceBg }]}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primaryColor} colors={[primaryColor]} />
-      }
-    >
+    <View style={[styles.container, { backgroundColor: surfaceBg }]}>
+      {/* ── Full-Screen Logo Watermark ──────────────────────────────────── */}
+      {branding?.logoUrl && (
+        <Image
+          source={{ uri: branding.logoUrl }}
+          style={styles.fullScreenWatermark}
+          resizeMode="contain"
+        />
+      )}
+      <ScrollView
+        style={{ flex: 1 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={primaryColor} colors={[primaryColor]} />
+        }
+      >
       {/* ── Branded Header ─────────────────────────────────────────────── */}
       <Animated.View entering={FadeInDown.duration(500)}>
         <View style={[
@@ -487,6 +496,7 @@ export default function DashboardScreen() {
 
       <View style={{ height: 40 }} />
     </ScrollView>
+    </View>
   );
 }
 
@@ -500,6 +510,7 @@ const styles = StyleSheet.create({
   iosHeader: { borderRadius: 24, borderWidth: 1 },
   androidHeader: { borderRadius: 28, elevation: 3 },
   logoWatermark: { position: "absolute", right: -20, top: -10, width: 120, height: 120, opacity: 0.06 },
+  fullScreenWatermark: { position: "absolute", top: "25%", left: "15%", width: "70%", height: "40%", opacity: 0.04, zIndex: 0 },
   headerContent: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerLeft: { flexDirection: "row", alignItems: "center", flex: 1, gap: 12 },
   companyLogoSmall: { width: 42, height: 42, borderRadius: 12 },
