@@ -17,43 +17,37 @@ import { useLanguageStore, AppLanguage } from "@/store/languageStore";
 import { buildMenuGroups, MenuGroup, getFilteredMenuGroups } from "./menuConfig";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePermissionsStore } from "@/store/permissionsStore";
+import { useBrandingStore } from "@/store/brandingStore";
+
+const APP_VERSION = "v1.4.0";
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-interface FlagButtonProps {
-  emoji: string;
-  lang: AppLanguage;
-  currentLang: AppLanguage;
-  onPress: (lang: AppLanguage) => void;
-}
+// ─── Category Labels ─────────────────────────────────────────────────────────
+const CATEGORY_MAP: Record<string, string> = {
+  fieldops: "OPERATIONS",
+  projects: "OPERATIONS",
+  team: "OPERATIONS",
+  jobcosting: "MANAGEMENT",
+  fleet: "MANAGEMENT",
+  inventory: "MANAGEMENT",
+  tools: "MORE",
+  referral: "MORE",
+  settings: "MORE",
+};
 
-function FlagButton({ emoji, lang, currentLang, onPress }: FlagButtonProps) {
-  const isActive = lang === currentLang;
-  return (
-    <TouchableOpacity
-      onPress={() => onPress(lang)}
-      activeOpacity={0.6}
-      style={[
-        styles.flagButton,
-        isActive && styles.flagButtonActive,
-      ]}
-    >
-      <Text style={styles.flagEmoji}>{emoji}</Text>
-    </TouchableOpacity>
-  );
-}
-
-// Accordion Group Component
-function AccordionGroup({
+// ─── Compact Accordion Group ─────────────────────────────────────────────────
+function CompactGroup({
   group,
   isExpanded,
   onToggle,
   onNavigate,
   getGroupLabel,
   getItemLabel,
+  primaryColor,
 }: {
   group: MenuGroup;
   isExpanded: boolean;
@@ -61,52 +55,44 @@ function AccordionGroup({
   onNavigate: (screen: string) => void;
   getGroupLabel: (id: string) => string;
   getItemLabel: (id: string) => string;
+  primaryColor: string;
 }) {
   const groupIcon = group.icon as keyof typeof Ionicons.glyphMap;
-
   return (
-    <View style={styles.accordionGroup}>
-      {/* Group Header - Tappable */}
+    <View>
       <TouchableOpacity
-        style={[styles.groupHeader, isExpanded && styles.groupHeaderActive]}
+        style={styles.groupRow}
         onPress={onToggle}
-        activeOpacity={0.7}
+        activeOpacity={0.6}
       >
-        <View style={styles.groupHeaderLeft}>
-          <View style={[styles.groupIconContainer, isExpanded && styles.groupIconContainerActive]}>
-            <Ionicons
-              name={groupIcon}
-              size={18}
-              color={isExpanded ? "#3B82F6" : "#8892A4"}
-            />
-          </View>
-          <Text style={[styles.groupHeaderText, isExpanded && styles.groupHeaderTextActive]}>
-            {getGroupLabel(group.id)}
-          </Text>
-        </View>
+        <Ionicons
+          name={groupIcon}
+          size={20}
+          color={isExpanded ? primaryColor : "#6B7A8D"}
+        />
+        <Text style={[
+          styles.groupLabel,
+          isExpanded && { color: "#FFFFFF" },
+        ]}>
+          {getGroupLabel(group.id)}
+        </Text>
         <Ionicons
           name={isExpanded ? "chevron-up" : "chevron-down"}
-          size={16}
-          color={isExpanded ? "#3B82F6" : "#5A6A80"}
+          size={14}
+          color={isExpanded ? primaryColor : "#4A5568"}
         />
       </TouchableOpacity>
-
-      {/* Collapsible Items */}
       {isExpanded && (
-        <View style={styles.groupItems}>
+        <View style={styles.subItems}>
           {group.items.map((item) => (
             <TouchableOpacity
               key={item.id}
-              style={styles.menuItem}
+              style={styles.subItem}
               onPress={() => onNavigate(item.screen)}
-              activeOpacity={0.7}
+              activeOpacity={0.6}
             >
-              <Ionicons
-                name={item.icon as keyof typeof Ionicons.glyphMap}
-                size={18}
-                color="#8892A4"
-              />
-              <Text style={styles.menuItemLabel}>{getItemLabel(item.id)}</Text>
+              <View style={[styles.subDot, { backgroundColor: `${primaryColor}40` }]} />
+              <Text style={styles.subLabel}>{getItemLabel(item.id)}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -115,16 +101,18 @@ function AccordionGroup({
   );
 }
 
+// ─── Main DrawerContent ──────────────────────────────────────────────────────
 export default function DrawerContent({ navigation }: DrawerContentComponentProps) {
   const { user, logout } = useAuthStore();
   const { language, setLanguage, labels, t } = useLanguageStore();
   const insets = useSafeAreaInsets();
-
-  // Track which groups are expanded (start with none expanded for clean look)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-
   const { has, hasAny, isOwner } = usePermissionsStore();
+  const { branding } = useBrandingStore();
+
   const menuGroups = isOwner ? buildMenuGroups(labels) : getFilteredMenuGroups(labels, has, hasAny);
+  const primaryColor = branding?.primaryColor || "#3B82F6";
+  const companyName = branding?.name || "CREW";
 
   const displayRole = (() => {
     const role = user?.role || "employee";
@@ -132,14 +120,12 @@ export default function DrawerContent({ navigation }: DrawerContentComponentProp
     return role.charAt(0).toUpperCase() + role.slice(1);
   })();
 
+  const firstName = user?.name?.split(" ")[0] || "User";
+
   const handleToggleGroup = useCallback((groupId: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedGroups((prev) => {
-      // If already open, close it
-      if (prev.has(groupId)) {
-        return new Set();
-      }
-      // Otherwise, close all others and open only this one (true accordion)
+      if (prev.has(groupId)) return new Set();
       return new Set([groupId]);
     });
   }, []);
@@ -220,313 +206,341 @@ export default function DrawerContent({ navigation }: DrawerContentComponentProp
     }
   };
 
+  // Group the menu groups into categories for section headers
+  const filteredGroups = menuGroups.filter((g) => g.id !== "main");
+  let lastCategory = "";
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header - Compact */}
+      {/* ── Header ──────────────────────────────────────────────────────── */}
       <View style={styles.header}>
-        <View style={styles.brandRow}>
-          <Image
-            source={require("../../assets/icon.png")}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <Text style={styles.brandName}>CREW</Text>
-          {/* Language Flags inline with brand */}
+        <View style={styles.headerTop}>
+          <View style={styles.brandSection}>
+            {branding?.logoUrl ? (
+              <Image source={{ uri: branding.logoUrl }} style={styles.companyLogo} resizeMode="contain" />
+            ) : (
+              <View style={[styles.logoFallback, { backgroundColor: `${primaryColor}25` }]}>
+                <Text style={[styles.logoInitial, { color: primaryColor }]}>{companyName.charAt(0)}</Text>
+              </View>
+            )}
+            <View style={styles.brandText}>
+              <Text style={[styles.companyName, { color: primaryColor }]} numberOfLines={1}>
+                {companyName.toUpperCase()}
+              </Text>
+              <Text style={styles.appVersion}>{APP_VERSION}</Text>
+            </View>
+          </View>
+          {/* Language Flags */}
           <View style={styles.flagsRow}>
-            <FlagButton emoji="🇺🇸" lang="en" currentLang={language} onPress={handleLanguageChange} />
-            <FlagButton emoji="🇧🇷" lang="pt" currentLang={language} onPress={handleLanguageChange} />
-            <FlagButton emoji="🇪🇸" lang="es" currentLang={language} onPress={handleLanguageChange} />
+            {(["en", "pt", "es"] as AppLanguage[]).map((lang) => (
+              <TouchableOpacity
+                key={lang}
+                onPress={() => handleLanguageChange(lang)}
+                activeOpacity={0.6}
+                style={[styles.flagDot, language === lang && { borderColor: primaryColor, backgroundColor: `${primaryColor}15` }]}
+              >
+                <Text style={styles.flagEmoji}>
+                  {lang === "en" ? "\u{1F1FA}\u{1F1F8}" : lang === "pt" ? "\u{1F1E7}\u{1F1F7}" : "\u{1F1EA}\u{1F1F8}"}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
+        {/* User Row */}
         <TouchableOpacity
-          style={styles.userInfo}
+          style={styles.userRow}
           onPress={() => handleNavigate("Profile")}
-          activeOpacity={0.7}
+          activeOpacity={0.6}
         >
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {user?.name?.charAt(0)?.toUpperCase() || "U"}
+          <View style={[styles.avatarCircle, { borderColor: `${primaryColor}50` }]}>
+            <Text style={[styles.avatarLetter, { color: primaryColor }]}>
+              {firstName.charAt(0).toUpperCase()}
             </Text>
           </View>
-          <View style={styles.userDetails}>
-            <Text style={styles.userName} numberOfLines={1}>
-              {user?.name || t("common.user")}
-            </Text>
+          <View style={styles.userText}>
+            <Text style={styles.userName} numberOfLines={1}>{firstName}</Text>
             <Text style={styles.userRole}>{displayRole}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color="#5A6A80" />
+          <Ionicons name="chevron-forward" size={14} color="#4A5568" />
         </TouchableOpacity>
       </View>
 
-      {/* Accordion Menu Groups */}
+      {/* ── Menu ────────────────────────────────────────────────────────── */}
       <ScrollView
         style={styles.menuScroll}
+        contentContainerStyle={styles.menuContent}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.menuScrollContent}
       >
-        {/* Dashboard - Direct link (no accordion needed for single item) */}
+        {/* Dashboard - Direct Link */}
         <TouchableOpacity
-          style={styles.dashboardButton}
+          style={styles.directItem}
           onPress={() => handleNavigate("Dashboard")}
-          activeOpacity={0.7}
+          activeOpacity={0.6}
         >
-          <View style={styles.groupIconContainer}>
-            <Ionicons name="grid-outline" size={18} color="#8892A4" />
-          </View>
-          <Text style={styles.dashboardLabel}>{labels.dashboard}</Text>
+          <View style={[styles.activeBar, { backgroundColor: primaryColor }]} />
+          <Ionicons name="grid-outline" size={20} color={primaryColor} />
+          <Text style={[styles.directLabel, { color: primaryColor }]}>{labels.dashboard}</Text>
         </TouchableOpacity>
 
-        {/* CREW Assistant - Direct link (prominent placement) */}
+        {/* CREW Assistant - Normal item, no highlight */}
         {(isOwner || user?.role === 'admin') && (
           <TouchableOpacity
-            style={styles.assistantButton}
+            style={styles.directItem}
             onPress={() => handleNavigate("CrewAssistant")}
-            activeOpacity={0.7}
+            activeOpacity={0.6}
           >
-            <View style={[styles.groupIconContainer, styles.assistantIconContainer]}>
-              <Ionicons name="sparkles" size={18} color="#F59E0B" />
-            </View>
-            <Text style={styles.assistantLabel}>{labels.crewAssistant}</Text>
+            <View style={styles.activeBarHidden} />
+            <Ionicons name="chatbubble-ellipses-outline" size={20} color="#6B7A8D" />
+            <Text style={styles.directLabel}>{labels.crewAssistant || "CREW Assistant"}</Text>
           </TouchableOpacity>
         )}
 
-        {/* Separator */}
-        <View style={styles.separator} />
+        {/* Grouped Menu Items */}
+        {filteredGroups.map((group) => {
+          const category = CATEGORY_MAP[group.id] || "";
+          const showCategoryHeader = category !== lastCategory;
+          if (showCategoryHeader) lastCategory = category;
 
-        {/* Accordion Groups (skip "main" since Dashboard is direct link) */}
-        {menuGroups
-          .filter((g) => g.id !== "main")
-          .map((group) => (
-            <AccordionGroup
-              key={group.id}
-              group={group}
-              isExpanded={expandedGroups.has(group.id)}
-              onToggle={() => handleToggleGroup(group.id)}
-              onNavigate={handleNavigate}
-              getGroupLabel={getGroupLabel}
-              getItemLabel={getItemLabel}
-            />
-          ))}
+          return (
+            <View key={group.id}>
+              {showCategoryHeader && category && (
+                <Text style={styles.categoryLabel}>{category}</Text>
+              )}
+              <CompactGroup
+                group={group}
+                isExpanded={expandedGroups.has(group.id)}
+                onToggle={() => handleToggleGroup(group.id)}
+                onNavigate={handleNavigate}
+                getGroupLabel={getGroupLabel}
+                getItemLabel={getItemLabel}
+                primaryColor={primaryColor}
+              />
+            </View>
+          );
+        })}
       </ScrollView>
 
-      {/* Footer */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-          <Text style={styles.logoutText}>{labels.signOut}</Text>
+      {/* ── Footer ──────────────────────────────────────────────────────── */}
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 8 }]}>
+        <TouchableOpacity style={styles.logoutRow} onPress={handleLogout} activeOpacity={0.6}>
+          <Ionicons name="log-out-outline" size={18} color="#EF4444" />
+          <Text style={styles.logoutLabel}>{labels.signOut}</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#0A1628",
   },
+
+  // Header
   header: {
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#1A2A40",
   },
-  brandRow: {
+  headerTop: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 12,
   },
-  logo: {
-    width: 28,
-    height: 28,
-    marginRight: 8,
-  },
-  brandName: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    letterSpacing: 1.5,
+  brandSection: {
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
+    gap: 10,
+  },
+  companyLogo: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+  },
+  logoFallback: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  logoInitial: {
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  brandText: {
+    flex: 1,
+  },
+  companyName: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+  },
+  appVersion: {
+    fontSize: 9,
+    color: "#4A5568",
+    marginTop: 1,
   },
   flagsRow: {
     flexDirection: "row",
-    gap: 6,
+    gap: 4,
   },
-  flagButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#1A2A40",
+  flagDot: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: "transparent",
   },
-  flagButtonActive: {
-    borderColor: "#3B82F6",
-    backgroundColor: "#1E3A5F",
-  },
   flagEmoji: {
-    fontSize: 16,
+    fontSize: 14,
   },
-  userInfo: {
+
+  // User
+  userRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    borderRadius: 8,
+    paddingVertical: 6,
+    gap: 10,
   },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#3B82F6",
+  avatarCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1.5,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 10,
+    backgroundColor: "rgba(255,255,255,0.03)",
   },
-  avatarText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "600",
+  avatarLetter: {
+    fontSize: 14,
+    fontWeight: "700",
   },
-  userDetails: {
+  userText: {
     flex: 1,
   },
   userName: {
-    color: "#FFFFFF",
+    color: "#E0E8F0",
     fontSize: 13,
     fontWeight: "600",
   },
   userRole: {
-    color: "#8892A4",
-    fontSize: 11,
+    color: "#6B7A8D",
+    fontSize: 10,
     marginTop: 1,
   },
+
+  // Menu
   menuScroll: {
     flex: 1,
   },
-  menuScrollContent: {
+  menuContent: {
     paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 20,
+    paddingTop: 8,
+    paddingBottom: 16,
   },
-  dashboardButton: {
+
+  // Direct items (Dashboard, Assistant)
+  directItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    height: 42,
+    paddingHorizontal: 8,
+    gap: 10,
     borderRadius: 8,
-    backgroundColor: "#0F1D32",
   },
-  dashboardLabel: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 10,
+  activeBar: {
+    width: 3,
+    height: 20,
+    borderRadius: 2,
+    marginRight: 2,
   },
-  assistantButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: "#1A1708",
-    marginTop: 6,
-    borderWidth: 1,
-    borderColor: "#78350F",
+  activeBarHidden: {
+    width: 3,
+    height: 20,
+    borderRadius: 2,
+    marginRight: 2,
+    backgroundColor: "transparent",
   },
-  assistantIconContainer: {
-    backgroundColor: "#78350F",
-  },
-  assistantLabel: {
-    color: "#F59E0B",
-    fontSize: 14,
-    fontWeight: "600",
-    marginLeft: 10,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: "#1A2A40",
-    marginVertical: 10,
-    marginHorizontal: 4,
-  },
-  // Accordion Group Styles
-  accordionGroup: {
-    marginBottom: 2,
-  },
-  groupHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    minHeight: 44,
-  },
-  groupHeaderActive: {
-    backgroundColor: "#0F1D32",
-  },
-  groupHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  groupIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: "#1A2A40",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
-  },
-  groupIconContainerActive: {
-    backgroundColor: "#1E3A5F",
-  },
-  groupHeaderText: {
-    color: "#C8D0DC",
+  directLabel: {
+    color: "#C0C8D4",
     fontSize: 13,
     fontWeight: "600",
-    letterSpacing: 0.3,
   },
-  groupHeaderTextActive: {
-    color: "#FFFFFF",
+
+  // Category headers
+  categoryLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    color: "#4A5568",
+    marginTop: 16,
+    marginBottom: 4,
+    paddingHorizontal: 12,
   },
-  groupItems: {
-    paddingLeft: 20,
-    paddingBottom: 4,
-  },
-  menuItem: {
+
+  // Group rows
+  groupRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 11,
+    height: 42,
     paddingHorizontal: 12,
-    borderRadius: 6,
-    marginLeft: 22,
+    gap: 10,
+    borderRadius: 8,
   },
-  menuItemLabel: {
+  groupLabel: {
+    flex: 1,
     color: "#8892A4",
     fontSize: 13,
-    marginLeft: 10,
-    fontWeight: "500",
+    fontWeight: "600",
   },
-  footer: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#1A2A40",
+
+  // Sub-items
+  subItems: {
+    paddingLeft: 42,
+    paddingBottom: 4,
   },
-  logoutButton: {
+  subItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
+    height: 34,
+    gap: 8,
   },
-  logoutText: {
-    color: "#EF4444",
-    fontSize: 14,
+  subDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+  },
+  subLabel: {
+    color: "#6B7A8D",
+    fontSize: 12,
     fontWeight: "500",
-    marginLeft: 10,
+  },
+
+  // Footer
+  footer: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#1A2A40",
+  },
+  logoutRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 36,
+    gap: 8,
+  },
+  logoutLabel: {
+    color: "#EF4444",
+    fontSize: 12,
+    fontWeight: "500",
   },
 });

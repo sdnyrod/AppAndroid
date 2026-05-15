@@ -260,10 +260,12 @@ export default function CrewAssistantScreen() {
             value={inputText}
             onChangeText={setInputText}
             maxLength={2000}
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
+            multiline
             blurOnSubmit={false}
             editable={!isProcessing}
+            autoCorrect={true}
+            autoCapitalize="sentences"
+            keyboardType="default"
           />
           <TouchableOpacity
             style={[
