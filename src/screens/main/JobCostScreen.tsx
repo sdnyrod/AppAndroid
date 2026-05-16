@@ -428,7 +428,7 @@ export default function JobCostScreen() {
               }
             }}>
               {isImage ? (
-                <Image source={{ uri: item.url }} style={styles.thumbImage} resizeMode="cover" />
+                <Image source={{ uri: item.thumbnailUrl || item.url }} style={styles.thumbImage} resizeMode="cover" />
               ) : (
                 <View style={styles.thumbPlaceholder}>
                   <Ionicons name={isVideo ? "videocam" : "document-text"} size={28} color="#3B82F6" />
@@ -570,7 +570,17 @@ export default function JobCostScreen() {
             </TouchableOpacity>
           </View>
           {previewIndex !== null && imageItems[previewIndex] ? (
-            <Image source={{ uri: imageItems[previewIndex].url }} style={styles.previewImage} resizeMode="contain" />
+            <ScrollView
+              maximumZoomScale={5}
+              minimumZoomScale={1}
+              bouncesZoom={true}
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ justifyContent: "center", alignItems: "center", flex: 1 }}
+              style={{ flex: 1, width: SCREEN_WIDTH }}
+            >
+              <Image source={{ uri: imageItems[previewIndex].url }} style={styles.previewImage} resizeMode="contain" />
+            </ScrollView>
           ) : null}
           {previewIndex !== null && imageItems[previewIndex] ? (
             <Text style={styles.previewFileName} numberOfLines={1}>

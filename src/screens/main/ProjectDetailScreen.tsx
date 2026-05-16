@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -196,6 +196,7 @@ export default function ProjectDetailScreen() {
   const projectId = route.params?.projectId;
 
   const [data, setData] = useState<CompletionBookData | null>(null);
+  const [jobCostData, setJobCostData] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
@@ -208,11 +209,13 @@ export default function ProjectDetailScreen() {
   const fetchData = useCallback(async () => {
     if (!projectId) return;
     try {
-      const result = await apiClient.get<CompletionBookData>(
-        "projects.getCompletionBook",
-        { projectId }
-      );
-      if (result) setData(result);
+      // Fetch both completion book AND jobCostDetail in parallel
+      const [bookResult, costResult] = await Promise.all([
+        apiClient.get<CompletionBookData>("projects.getCompletionBook", { projectId }),
+        apiClient.get<Record<string, any>>("reports.jobCostDetail", { projectId }),
+      ]);
+      if (bookResult) setData(bookResult);
+      if (costResult) setJobCostData(costResult);
     } catch (err) {
       console.warn("Failed to load project detail:", err);
     } finally {
@@ -369,10 +372,63 @@ export default function ProjectDetailScreen() {
     );
   }
 
-  const { project, contractor, team, media, documents, activityLogs, financialSummary } = data;
+  const { project, contractor, team, media, documents, activityLogs, financialSummary: bookFinancial } = data;
   const fullAddress = [project.address, project.city, project.state, project.zipCode]
     .filter(Boolean)
     .join(", ");
+
+  // Build financial summary from jobCostDetail (accurate) or fall back to completionBook
+  const financialSummary = useMemo(() => {
+    if (!jobCostData) return bookFinancial;
+    // jobCostDetail can be lump_sum or detailed
+    if (jobCostData.estimateType === "lump_sum" || jobCostData.contractValue !== undefined) {
+      const contractValue = Number(jobCostData.contractValue || 0);
+      const totalCosts = Number(jobCostData.totalCosts || 0);
+      const laborCost = Number(jobCostData.costBreakdown?.labor || 0);
+      const materialsCost = Number(jobCostData.costBreakdown?.materials || 0);
+      const fleetCost = Number(jobCostData.costBreakdown?.fleet || 0);
+      const otherCost = Number(jobCostData.costBreakdown?.other || 0) + fleetCost;
+      const margin = contractValue > 0 ? ((contractValue - totalCosts) / contractValue * 100) : 0;
+      const workerCount = (jobCostData.workerBreakdown || []).length;
+      const totalHours = (jobCostData.workerBreakdown || []).reduce((s: number, w: any) => s + Number(w.hours || 0), 0);
+      return {
+        budgetAmount: contractValue,
+        proposalValue: contractValue,
+        totalLaborCost: laborCost,
+        totalMaterialCost: materialsCost,
+        totalFuelCost: fleetCost,
+        totalOtherCost: otherCost,
+        totalCost: totalCosts,
+        totalHours,
+        workerCount,
+        profitMargin: margin,
+        costBreakdown: { labor: laborCost, materials: materialsCost, fuel: fleetCost, other: otherCost },
+      };
+    }
+    // Detailed estimate type
+    const contractValue = Number(jobCostData.summary?.estimatedTotal || 0);
+    const actualCost = Number(jobCostData.summary?.actualTotal || 0);
+    const laborCost = (jobCostData.labor || []).reduce((s: number, l: any) => s + Number(l.actualCost || 0), 0);
+    const materialsCost = (jobCostData.materials || []).reduce((s: number, m: any) => s + Number(m.actualTotal || 0), 0);
+    const fleetCost = (jobCostData.fleet || []).reduce((s: number, f: any) => s + Number(f.totalCost || 0), 0);
+    const otherCost = (jobCostData.otherCosts || []).reduce((s: number, o: any) => s + Number(o.actualAmount || 0), 0) + fleetCost;
+    const margin = contractValue > 0 ? ((contractValue - actualCost) / contractValue * 100) : 0;
+    const workerCount = (jobCostData.labor || []).length;
+    const totalHours = (jobCostData.labor || []).reduce((s: number, l: any) => s + Number(l.hours || 0), 0);
+    return {
+      budgetAmount: contractValue,
+      proposalValue: contractValue,
+      totalLaborCost: laborCost,
+      totalMaterialCost: materialsCost,
+      totalFuelCost: fleetCost,
+      totalOtherCost: otherCost,
+      totalCost: actualCost,
+      totalHours,
+      workerCount,
+      profitMargin: margin,
+      costBreakdown: { labor: laborCost, materials: materialsCost, fuel: fleetCost, other: otherCost },
+    };
+  }, [jobCostData, bookFinancial]);
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
   const tabs: { key: TabKey; label: string; icon: string; count?: number }[] = [
@@ -624,7 +680,7 @@ export default function ProjectDetailScreen() {
               }}
             >
               {isImage ? (
-                <Image source={{ uri: item.url }} style={styles.thumbImage} resizeMode="cover" />
+                <Image source={{ uri: item.thumbnailUrl || item.url }} style={styles.thumbImage} resizeMode="cover" />
               ) : (
                 <View style={styles.thumbPlaceholder}>
                   <Ionicons
@@ -760,13 +816,23 @@ export default function ProjectDetailScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Image */}
+          {/* Image with pinch-to-zoom */}
           {previewIndex !== null && imageItems[previewIndex] ? (
-            <Image
-              source={{ uri: imageItems[previewIndex].url }}
-              style={styles.previewImage}
-              resizeMode="contain"
-            />
+            <ScrollView
+              maximumZoomScale={5}
+              minimumZoomScale={1}
+              bouncesZoom={true}
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ justifyContent: "center", alignItems: "center", flex: 1 }}
+              style={{ flex: 1, width: SCREEN_WIDTH }}
+            >
+              <Image
+                source={{ uri: imageItems[previewIndex].url }}
+                style={styles.previewImage}
+                resizeMode="contain"
+              />
+            </ScrollView>
           ) : null}
 
           {/* File name */}
