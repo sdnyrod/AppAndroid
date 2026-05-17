@@ -1,6 +1,6 @@
 // API Configuration
-// The app communicates with the CREW web backend at crew-cwm.com
-export const API_BASE_URL = "https://crew-cwm.com";
+// The app communicates with the CREW web backend at crewcwm.com
+export const API_BASE_URL = "https://crewcwm.com";
 export const API_TRPC_URL = `${API_BASE_URL}/api/trpc`;
 
 // App Configuration
