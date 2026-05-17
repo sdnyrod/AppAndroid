@@ -205,24 +205,35 @@ export default function ProjectDetailScreen() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
 
-  // ── Fetch data ───────────────────────────────────────────────────────────
+  // ── Fetch data (same pattern as JobCostScreen) ──────────────────────────
+  const fetchCompletionBook = useCallback(async (pid: number) => {
+    try {
+      const result = await apiClient.get<CompletionBookData>("projects.getCompletionBook", { projectId: pid });
+      if (result) setData(result);
+    } catch (err) {
+      console.warn("Failed to load completion book:", err);
+    }
+  }, []);
+
+  const fetchCostData = useCallback(async (pid: number) => {
+    try {
+      const result = await apiClient.get<Record<string, any>>("reports.jobCostDetail", { projectId: pid });
+      if (result) setJobCostData(result);
+    } catch (err) {
+      console.warn("Failed to load job cost detail:", err);
+    }
+  }, []);
+
   const fetchData = useCallback(async () => {
     if (!projectId) return;
-    try {
-      // Fetch both completion book AND jobCostDetail in parallel
-      const [bookResult, costResult] = await Promise.all([
-        apiClient.get<CompletionBookData>("projects.getCompletionBook", { projectId }),
-        apiClient.get<Record<string, any>>("reports.jobCostDetail", { projectId }),
-      ]);
-      if (bookResult) setData(bookResult);
-      if (costResult) setJobCostData(costResult);
-    } catch (err) {
-      console.warn("Failed to load project detail:", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [projectId]);
+    setLoading(true);
+    await Promise.all([
+      fetchCompletionBook(projectId),
+      fetchCostData(projectId),
+    ]);
+    setLoading(false);
+    setRefreshing(false);
+  }, [projectId, fetchCompletionBook, fetchCostData]);
 
   useEffect(() => {
     fetchData();
@@ -372,7 +383,13 @@ export default function ProjectDetailScreen() {
     );
   }
 
-  const { project, contractor, team, media, documents, activityLogs, financialSummary: bookFinancial } = data;
+  const project = data.project;
+  const contractor = data.contractor;
+  const team = data.team || [];
+  const media = data.media || [];
+  const documents = data.documents || [];
+  const activityLogs = data.activityLogs || [];
+  const bookFinancial = data.financialSummary;
   const fullAddress = [project.address, project.city, project.state, project.zipCode]
     .filter(Boolean)
     .join(", ");
