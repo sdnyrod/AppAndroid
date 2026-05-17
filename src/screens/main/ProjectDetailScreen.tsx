@@ -390,55 +390,24 @@ function ProjectDetailScreenInner() {
     }
   };
 
-  // ── Image list for navigation ───────────────────────────────────────────
-  const imageItems = data ? data.media.filter(
-    (m) => m.mediaType === "photo" || m.url?.match(/\.(jpg|jpeg|png|gif|webp)/i)
-  ) : [];
+  // ── Derived data (hooks MUST be before any early return) ─────────────────
+  const project = data?.project;
+  const contractor = data?.contractor;
+  const team = data?.team || [];
+  const media = data?.media || [];
+  const documents = data?.documents || [];
+  const activityLogs = data?.activityLogs || [];
+  const bookFinancial = data?.financialSummary;
+  const fullAddress = project
+    ? [project.address, project.city, project.state, project.zipCode].filter(Boolean).join(", ")
+    : "";
 
-  // ── Open document URL ────────────────────────────────────────────────────
-  const openDocument = async (url: string) => {
-    try {
-      await WebBrowser.openBrowserAsync(url);
-    } catch {
-      try {
-        await Linking.openURL(url);
-      } catch {
-        Alert.alert("Error", "Cannot open this document");
-      }
-    }
-  };
-
-  // ── Loading state ────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-      </View>
+  const imageItems = useMemo(() => {
+    if (!data?.media) return [];
+    return data.media.filter(
+      (m) => m.mediaType === "photo" || m.url?.match(/\.(jpg|jpeg|png|gif|webp)/i)
     );
-  }
-
-  if (!data) {
-    return (
-      <View style={styles.centered}>
-        <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
-        <Text style={styles.errorText}>Failed to load project</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={fetchData}>
-          <Text style={styles.retryBtnText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const project = data.project;
-  const contractor = data.contractor;
-  const team = data.team || [];
-  const media = data.media || [];
-  const documents = data.documents || [];
-  const activityLogs = data.activityLogs || [];
-  const bookFinancial = data.financialSummary;
-  const fullAddress = [project.address, project.city, project.state, project.zipCode]
-    .filter(Boolean)
-    .join(", ");
+  }, [data?.media]);
 
   // Build financial summary from jobCostDetail (accurate) or fall back to completionBook
   const financialSummary = useMemo(() => {
@@ -492,6 +461,40 @@ function ProjectDetailScreenInner() {
       costBreakdown: { labor: laborCost, materials: materialsCost, fuel: fleetCost, other: otherCost },
     };
   }, [jobCostData, bookFinancial]);
+
+  // ── Open document URL ────────────────────────────────────────────────────
+  const openDocument = async (url: string) => {
+    try {
+      await WebBrowser.openBrowserAsync(url);
+    } catch {
+      try {
+        await Linking.openURL(url);
+      } catch {
+        Alert.alert("Error", "Cannot open this document");
+      }
+    }
+  };
+
+  // ── Loading state ────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </View>
+    );
+  }
+
+  if (!data || !project) {
+    return (
+      <View style={styles.centered}>
+        <Ionicons name="alert-circle-outline" size={40} color="#EF4444" />
+        <Text style={styles.errorText}>Failed to load project</Text>
+        <TouchableOpacity style={styles.retryBtn} onPress={fetchData}>
+          <Text style={styles.retryBtnText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
   const tabs: { key: TabKey; label: string; icon: string; count?: number }[] = [
@@ -570,34 +573,36 @@ function ProjectDetailScreenInner() {
         ) : null}
 
         {/* Financial Summary */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Financial Summary</Text>
-          <View style={styles.finGrid}>
-            <FinCard label="Proposal" value={fmt(financialSummary.proposalValue)} color="#3B82F6" />
-            <FinCard label="Total Cost" value={fmt(financialSummary.totalCost)} color="#EF4444" />
-            <FinCard label="Profit" value={fmt(financialSummary.proposalValue - financialSummary.totalCost)} color="#10B981" />
-            <FinCard
-              label="Margin"
-              value={financialSummary.profitMargin.toFixed(1) + "%"}
-              color={financialSummary.profitMargin >= 0 ? "#10B981" : "#EF4444"}
-            />
-          </View>
+        {financialSummary ? (
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Financial Summary</Text>
+            <View style={styles.finGrid}>
+              <FinCard label="Proposal" value={fmt(financialSummary.proposalValue)} color="#3B82F6" />
+              <FinCard label="Total Cost" value={fmt(financialSummary.totalCost)} color="#EF4444" />
+              <FinCard label="Profit" value={fmt(financialSummary.proposalValue - financialSummary.totalCost)} color="#10B981" />
+              <FinCard
+                label="Margin"
+                value={financialSummary.profitMargin.toFixed(1) + "%"}
+                color={financialSummary.profitMargin >= 0 ? "#10B981" : "#EF4444"}
+              />
+            </View>
 
-          {/* Cost Breakdown */}
-          <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Cost Breakdown</Text>
-          <CostBar label="Labor" amount={financialSummary.costBreakdown.labor} total={financialSummary.totalCost} color="#3B82F6" />
-          <CostBar label="Materials" amount={financialSummary.costBreakdown.materials} total={financialSummary.totalCost} color="#F59E0B" />
-          <CostBar label="Fuel" amount={financialSummary.costBreakdown.fuel} total={financialSummary.totalCost} color="#10B981" />
-          <CostBar label="Other" amount={financialSummary.costBreakdown.other} total={financialSummary.totalCost} color="#8B5CF6" />
-        </View>
+            {/* Cost Breakdown */}
+            <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Cost Breakdown</Text>
+            <CostBar label="Labor" amount={financialSummary.costBreakdown.labor} total={financialSummary.totalCost} color="#3B82F6" />
+            <CostBar label="Materials" amount={financialSummary.costBreakdown.materials} total={financialSummary.totalCost} color="#F59E0B" />
+            <CostBar label="Fuel" amount={financialSummary.costBreakdown.fuel} total={financialSummary.totalCost} color="#10B981" />
+            <CostBar label="Other" amount={financialSummary.costBreakdown.other} total={financialSummary.totalCost} color="#8B5CF6" />
+          </View>
+        ) : null}
 
         {/* Quick Stats */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Quick Stats</Text>
           <View style={styles.statsRow}>
-            <StatChip icon="people" label="Workers" value={String(financialSummary.workerCount)} />
-            <StatChip icon="time" label="Hours" value={fmtHours(financialSummary.totalHours)} />
-            <StatChip icon="document" label="Time Entries" value={String(data.timeEntries)} />
+            <StatChip icon="people" label="Workers" value={String(financialSummary?.workerCount || 0)} />
+            <StatChip icon="time" label="Hours" value={fmtHours(financialSummary?.totalHours || 0)} />
+            <StatChip icon="document" label="Time Entries" value={String(data?.timeEntries || 0)} />
           </View>
         </View>
 
