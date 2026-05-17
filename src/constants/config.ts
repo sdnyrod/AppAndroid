@@ -5,7 +5,7 @@ export const API_TRPC_URL = `${API_BASE_URL}/api/trpc`;
 
 // App Configuration
 export const APP_NAME = "CREW";
-export const APP_VERSION = "1.2.0";
+export const APP_VERSION = "1.5.0";
 
 // Store URLs
 export const IOS_STORE_URL = "https://apps.apple.com/app/crew-cwm/id6746587498";

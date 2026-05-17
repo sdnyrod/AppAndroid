@@ -20,7 +20,7 @@ import { useBrandingStore } from "@/store/brandingStore";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
-const APP_VERSION = "v1.4.0";
+const APP_VERSION = "v1.5.0";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface DashboardKPIs {
