@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, Component, ErrorInfo } from "react";
 import {
   View,
   Text,
@@ -188,8 +188,54 @@ const formatDateTime = (d: string | undefined) => {
   }
 };
 
-// ── Component ──────────────────────────────────────────────────────────────
+// ── Error Boundary ────────────────────────────────────────────────────────
+class ProjectDetailErrorBoundary extends Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null; errorInfo: ErrorInfo | null }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    this.setState({ errorInfo });
+    console.error("[ProjectDetail CRASH]", error.message, errorInfo.componentStack);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, backgroundColor: "#0A1628", justifyContent: "center", alignItems: "center", padding: 24 }}>
+          <Text style={{ color: "#EF4444", fontSize: 18, fontWeight: "bold", marginBottom: 12 }}>Screen Crashed</Text>
+          <Text style={{ color: "#F59E0B", fontSize: 14, marginBottom: 8 }}>Error: {this.state.error?.message}</Text>
+          <ScrollView style={{ maxHeight: 300, width: "100%" }}>
+            <Text style={{ color: "#94A3B8", fontSize: 11, fontFamily: "monospace" }}>
+              {this.state.error?.stack}
+            </Text>
+            <Text style={{ color: "#64748B", fontSize: 10, fontFamily: "monospace", marginTop: 8 }}>
+              {this.state.errorInfo?.componentStack}
+            </Text>
+          </ScrollView>
+          <Text style={{ color: "#94A3B8", fontSize: 12, marginTop: 16 }}>Please screenshot this and send to support.</Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function ProjectDetailScreen() {
+  return (
+    <ProjectDetailErrorBoundary>
+      <ProjectDetailScreenInner />
+    </ProjectDetailErrorBoundary>
+  );
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
+function ProjectDetailScreenInner() {
   const { t } = useLanguageStore();
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<ProjectDetailRouteParams, "ProjectDetail">>();
